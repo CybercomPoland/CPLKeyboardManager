@@ -1,0 +1,6 @@
+framework module CPLKeyboardManager {
+  umbrella header "CPLKeyboardManager-umbrella.h"
+
+  export *
+  module * { export * }
+}

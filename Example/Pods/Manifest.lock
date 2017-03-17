@@ -1,0 +1,16 @@
+PODS:
+  - CPLKeyboardManager (0.1.0)
+
+DEPENDENCIES:
+  - CPLKeyboardManager (from `../`)
+
+EXTERNAL SOURCES:
+  CPLKeyboardManager:
+    :path: ../
+
+SPEC CHECKSUMS:
+  CPLKeyboardManager: ad9cf1f4e95f35281c9d7991ef125bd33d2a3c55
+
+PODFILE CHECKSUM: b980cae5717b546e1dedb983fc73ef547e863c5e
+
+COCOAPODS: 1.1.1

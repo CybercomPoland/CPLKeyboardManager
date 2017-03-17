@@ -1,0 +1,11 @@
+use_frameworks!
+
+target 'CPLKeyboardManager_Example' do
+  pod 'CPLKeyboardManager', :path => '../'
+
+  target 'CPLKeyboardManager_Tests' do
+    inherit! :search_paths
+
+    
+  end
+end
