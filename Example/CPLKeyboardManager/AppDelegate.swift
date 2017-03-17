@@ -12,10 +12,22 @@ import UIKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-
+    var rootCoordinator: RootCoordinator!
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+
+        window = UIWindow(frame: UIScreen.main.bounds)
+        if let window = window,
+            let mainVC = UIStoryboard(name: "Main", bundle: nil).instantiateInitialViewController() as? MenuViewController {
+
+            let navCon = UINavigationController(rootViewController: mainVC)
+            navCon.setNavigationBarHidden(true, animated: false)
+            rootCoordinator = RootCoordinator(withNavigationController: navCon)
+            mainVC.delegate = rootCoordinator
+            window.rootViewController = navCon
+            window.makeKeyAndVisible()
+        }
+
         return true
     }
 

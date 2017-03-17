@@ -7,9 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B29C6B21E7C2D6200D7BB96 /* TextViewTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B29C6B11E7C2D6100D7BB96 /* TextViewTableViewCell.swift */; };
+		1B83BD3A1E7C031D002DFB83 /* RootCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B83BD391E7C031D002DFB83 /* RootCoordinator.swift */; };
+		1B83BD3C1E7C05AD002DFB83 /* MenuViewControllerDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B83BD3B1E7C05AD002DFB83 /* MenuViewControllerDelegate.swift */; };
+		1B83BD3E1E7C0A5B002DFB83 /* TableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B83BD3D1E7C0A5B002DFB83 /* TableViewController.swift */; };
 		1EAD6E0592AF6EA666E8F736 /* Pods_CPLKeyboardManager_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E962A6CA907E42346F033478 /* Pods_CPLKeyboardManager_Tests.framework */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
-		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
+		607FACD81AFB9204008FA782 /* MenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* MenuViewController.swift */; };
 		607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 607FACD91AFB9204008FA782 /* Main.storyboard */; };
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
@@ -28,13 +32,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1B29C6B11E7C2D6100D7BB96 /* TextViewTableViewCell.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TextViewTableViewCell.swift; sourceTree = "<group>"; };
+		1B83BD391E7C031D002DFB83 /* RootCoordinator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RootCoordinator.swift; sourceTree = "<group>"; };
+		1B83BD3B1E7C05AD002DFB83 /* MenuViewControllerDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MenuViewControllerDelegate.swift; sourceTree = "<group>"; };
+		1B83BD3D1E7C0A5B002DFB83 /* TableViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TableViewController.swift; sourceTree = "<group>"; };
 		30ED554EDEFA71C00BB0EFB9 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LICENSE; path = ../LICENSE; sourceTree = "<group>"; };
 		36E2768EDE0F085A69ACDC68 /* Pods-CPLKeyboardManager_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CPLKeyboardManager_Example.release.xcconfig"; path = "Pods/Target Support Files/Pods-CPLKeyboardManager_Example/Pods-CPLKeyboardManager_Example.release.xcconfig"; sourceTree = "<group>"; };
 		3C9A7AF6CAA4CEC7CC832185 /* CPLKeyboardManager.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = CPLKeyboardManager.podspec; path = ../CPLKeyboardManager.podspec; sourceTree = "<group>"; };
 		607FACD01AFB9204008FA782 /* CPLKeyboardManager_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CPLKeyboardManager_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACD51AFB9204008FA782 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		607FACD71AFB9204008FA782 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		607FACD71AFB9204008FA782 /* MenuViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuViewController.swift; sourceTree = "<group>"; };
 		607FACDA1AFB9204008FA782 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		607FACDC1AFB9204008FA782 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		607FACDF1AFB9204008FA782 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/LaunchScreen.xib; sourceTree = "<group>"; };
@@ -94,11 +102,15 @@
 			isa = PBXGroup;
 			children = (
 				607FACD51AFB9204008FA782 /* AppDelegate.swift */,
-				607FACD71AFB9204008FA782 /* ViewController.swift */,
+				1B83BD391E7C031D002DFB83 /* RootCoordinator.swift */,
+				607FACD71AFB9204008FA782 /* MenuViewController.swift */,
+				1B83BD3D1E7C0A5B002DFB83 /* TableViewController.swift */,
 				607FACD91AFB9204008FA782 /* Main.storyboard */,
 				607FACDC1AFB9204008FA782 /* Images.xcassets */,
 				607FACDE1AFB9204008FA782 /* LaunchScreen.xib */,
 				607FACD31AFB9204008FA782 /* Supporting Files */,
+				1B83BD3B1E7C05AD002DFB83 /* MenuViewControllerDelegate.swift */,
+				1B29C6B11E7C2D6100D7BB96 /* TextViewTableViewCell.swift */,
 			);
 			name = "Example for CPLKeyboardManager";
 			path = CPLKeyboardManager;
@@ -363,8 +375,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				607FACD81AFB9204008FA782 /* ViewController.swift in Sources */,
+				607FACD81AFB9204008FA782 /* MenuViewController.swift in Sources */,
+				1B83BD3A1E7C031D002DFB83 /* RootCoordinator.swift in Sources */,
 				607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */,
+				1B83BD3E1E7C0A5B002DFB83 /* TableViewController.swift in Sources */,
+				1B83BD3C1E7C05AD002DFB83 /* MenuViewControllerDelegate.swift in Sources */,
+				1B29C6B21E7C2D6200D7BB96 /* TextViewTableViewCell.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

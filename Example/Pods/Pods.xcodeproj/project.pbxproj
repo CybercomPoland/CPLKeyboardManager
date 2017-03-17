@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0DDA83975C863DEA3C1509B23A58C04C /* ReplaceMe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B9A76DE241263FC2C74172F6A3CB83 /* ReplaceMe.swift */; };
 		189985B428CDD884E0A195C74C77949D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CBB3DE36805AF21409EC968A9691732F /* Foundation.framework */; };
+		1B83BD381E7BFDEE002DFB83 /* CPLKeyboardManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B83BD371E7BFDEE002DFB83 /* CPLKeyboardManager.swift */; };
 		1E21C35AD2A800C289FB6DF8ED8CBFF2 /* CPLKeyboardManager-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = DF83898C56846F42AF6DCCA0CF9F2439 /* CPLKeyboardManager-dummy.m */; };
 		384000EE6513FC11189FF6760A350EA2 /* Pods-CPLKeyboardManager_Tests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 7F5BFA642288F736ED44BA65496F48B5 /* Pods-CPLKeyboardManager_Tests-dummy.m */; };
 		41BE42A693548F04E985E5846F37CA4D /* Pods-CPLKeyboardManager_Tests-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = BC385F55A345D383EC99DF948466D7FE /* Pods-CPLKeyboardManager_Tests-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -30,32 +30,32 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		00D16F58E8C326B09897561FFC91716F /* Pods_CPLKeyboardManager_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = Pods_CPLKeyboardManager_Tests.framework; path = "Pods-CPLKeyboardManager_Tests.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		00D16F58E8C326B09897561FFC91716F /* Pods_CPLKeyboardManager_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CPLKeyboardManager_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		045C84C816B956498DF08254E106FD61 /* Pods-CPLKeyboardManager_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-CPLKeyboardManager_Example.debug.xcconfig"; sourceTree = "<group>"; };
 		094895F53E1E16CE17C30A7EC440E0CD /* Pods-CPLKeyboardManager_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-CPLKeyboardManager_Tests.release.xcconfig"; sourceTree = "<group>"; };
 		12D1DDCA466A582AF824653F46968564 /* Pods-CPLKeyboardManager_Example-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-CPLKeyboardManager_Example-dummy.m"; sourceTree = "<group>"; };
-		1546C4B330497BD7559613A2884D6781 /* CPLKeyboardManager.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; path = CPLKeyboardManager.modulemap; sourceTree = "<group>"; };
+		1546C4B330497BD7559613A2884D6781 /* CPLKeyboardManager.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "sourcecode.module-map"; path = CPLKeyboardManager.modulemap; sourceTree = "<group>"; };
 		17E58575F16509533EC65B36799C86F2 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		1B83BD371E7BFDEE002DFB83 /* CPLKeyboardManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CPLKeyboardManager.swift; sourceTree = "<group>"; };
 		366705D25145F23B9D7ACBBE20AC8D03 /* Pods-CPLKeyboardManager_Example-frameworks.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-CPLKeyboardManager_Example-frameworks.sh"; sourceTree = "<group>"; };
 		3A3AA4A9F924B8A7200AB85D7531D01C /* Pods-CPLKeyboardManager_Tests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-CPLKeyboardManager_Tests-acknowledgements.plist"; sourceTree = "<group>"; };
 		4E80B6B7A11B77A85A1D149FFFD38166 /* Pods-CPLKeyboardManager_Example-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-CPLKeyboardManager_Example-acknowledgements.plist"; sourceTree = "<group>"; };
-		53DF5A31EAA470124FDE332B001CE4F5 /* Pods-CPLKeyboardManager_Example.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; path = "Pods-CPLKeyboardManager_Example.modulemap"; sourceTree = "<group>"; };
+		53DF5A31EAA470124FDE332B001CE4F5 /* Pods-CPLKeyboardManager_Example.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "sourcecode.module-map"; path = "Pods-CPLKeyboardManager_Example.modulemap"; sourceTree = "<group>"; };
 		7463F9DE623FAC24DEED2B38902DA524 /* Pods-CPLKeyboardManager_Example-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-CPLKeyboardManager_Example-umbrella.h"; sourceTree = "<group>"; };
 		76406E770F0E947C56A5ECB0A1BB9642 /* Pods-CPLKeyboardManager_Tests-frameworks.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-CPLKeyboardManager_Tests-frameworks.sh"; sourceTree = "<group>"; };
 		77603EF1110A6F2D0B986498B2C5D7F0 /* Pods-CPLKeyboardManager_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-CPLKeyboardManager_Tests.debug.xcconfig"; sourceTree = "<group>"; };
 		7F5BFA642288F736ED44BA65496F48B5 /* Pods-CPLKeyboardManager_Tests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-CPLKeyboardManager_Tests-dummy.m"; sourceTree = "<group>"; };
-		87C88AC2721B44FB1140CEDF4BC3C0AE /* Pods_CPLKeyboardManager_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = Pods_CPLKeyboardManager_Example.framework; path = "Pods-CPLKeyboardManager_Example.framework"; sourceTree = BUILT_PRODUCTS_DIR; };
+		87C88AC2721B44FB1140CEDF4BC3C0AE /* Pods_CPLKeyboardManager_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CPLKeyboardManager_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A417A011EAA7F0CAEB66F33671CCEF0 /* Pods-CPLKeyboardManager_Tests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-CPLKeyboardManager_Tests-acknowledgements.markdown"; sourceTree = "<group>"; };
-		8E08A9EF6BD65205154A1D2EED04F962 /* CPLKeyboardManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = CPLKeyboardManager.framework; path = CPLKeyboardManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		93A4A3777CF96A4AAC1D13BA6DCCEA73 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		94B9A76DE241263FC2C74172F6A3CB83 /* ReplaceMe.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReplaceMe.swift; sourceTree = "<group>"; };
+		8E08A9EF6BD65205154A1D2EED04F962 /* CPLKeyboardManager.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CPLKeyboardManager.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		93A4A3777CF96A4AAC1D13BA6DCCEA73 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		A536943D9153A5AC8BDCD8E020FA50B6 /* CPLKeyboardManager-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "CPLKeyboardManager-umbrella.h"; sourceTree = "<group>"; };
 		A5596A90ED61E8A5814683D98D3EAF32 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A7D780591D4EFF2F3BB1B8DAF63E2505 /* CPLKeyboardManager-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "CPLKeyboardManager-prefix.pch"; sourceTree = "<group>"; };
 		B29E69A361057273CC30AA8279D2D756 /* Pods-CPLKeyboardManager_Example-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-CPLKeyboardManager_Example-acknowledgements.markdown"; sourceTree = "<group>"; };
 		B3531633F02F6F4A41F12A11476FA5E8 /* Pods-CPLKeyboardManager_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-CPLKeyboardManager_Example.release.xcconfig"; sourceTree = "<group>"; };
 		B40115EC3304ED171B9244F815CB5B0C /* Pods-CPLKeyboardManager_Example-resources.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-CPLKeyboardManager_Example-resources.sh"; sourceTree = "<group>"; };
-		BAACBD4E02C0BA474F326EEBEC7D1B74 /* Pods-CPLKeyboardManager_Tests.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; path = "Pods-CPLKeyboardManager_Tests.modulemap"; sourceTree = "<group>"; };
+		BAACBD4E02C0BA474F326EEBEC7D1B74 /* Pods-CPLKeyboardManager_Tests.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "sourcecode.module-map"; path = "Pods-CPLKeyboardManager_Tests.modulemap"; sourceTree = "<group>"; };
 		BC385F55A345D383EC99DF948466D7FE /* Pods-CPLKeyboardManager_Tests-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-CPLKeyboardManager_Tests-umbrella.h"; sourceTree = "<group>"; };
 		CBB3DE36805AF21409EC968A9691732F /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS10.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		DF83898C56846F42AF6DCCA0CF9F2439 /* CPLKeyboardManager-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "CPLKeyboardManager-dummy.m"; sourceTree = "<group>"; };
@@ -176,7 +176,6 @@
 			children = (
 				F2D95232C9E7D25034A6874862FC8BC8 /* Classes */,
 			);
-			name = CPLKeyboardManager;
 			path = CPLKeyboardManager;
 			sourceTree = "<group>";
 		};
@@ -208,9 +207,8 @@
 		F2D95232C9E7D25034A6874862FC8BC8 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				94B9A76DE241263FC2C74172F6A3CB83 /* ReplaceMe.swift */,
+				1B83BD371E7BFDEE002DFB83 /* CPLKeyboardManager.swift */,
 			);
-			name = Classes;
 			path = Classes;
 			sourceTree = "<group>";
 		};
@@ -340,7 +338,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1E21C35AD2A800C289FB6DF8ED8CBFF2 /* CPLKeyboardManager-dummy.m in Sources */,
-				0DDA83975C863DEA3C1509B23A58C04C /* ReplaceMe.swift in Sources */,
+				1B83BD381E7BFDEE002DFB83 /* CPLKeyboardManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
