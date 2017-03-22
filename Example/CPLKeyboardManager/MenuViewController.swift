@@ -21,5 +21,9 @@ class MenuViewController: UIViewController {
     @IBAction func showTableView(_ sender: UIButton) {
         delegate?.tappedTableViewButton()
     }
+
+    @IBAction func showScrollView(_ sender: UIButton) {
+        delegate?.tappedScrollViewButton()
+    }
 }
 

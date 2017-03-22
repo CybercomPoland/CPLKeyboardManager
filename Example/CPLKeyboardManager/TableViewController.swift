@@ -9,7 +9,7 @@
 import UIKit
 import CPLKeyboardManager
 
-class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDataSource, UITextViewDelegate {
+class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UITextViewDelegate {
 
     @IBOutlet weak var tableView: UITableView!
 
@@ -17,10 +17,10 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        keyboardManager = CPLKeyboardManager(withTableView: tableView)
+        keyboardManager = CPLKeyboardManager(tableView: tableView, inViewController: self)
+        tableView.delegate = self
         tableView.estimatedRowHeight = 44
         tableView.rowHeight = UITableViewAutomaticDimension
-        // Do any additional setup after loading the view.
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -34,6 +34,11 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
     func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
+
+
+//    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+//        return 950
+//    }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         var reusableId: String
@@ -57,7 +62,7 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 21
+        return 22
     }
 
     func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {

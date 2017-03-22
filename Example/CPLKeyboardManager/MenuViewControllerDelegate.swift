@@ -10,4 +10,5 @@ import Foundation
 
 protocol MenuViewControllerDelegate: class {
     func tappedTableViewButton()
+    func tappedScrollViewButton()
 }

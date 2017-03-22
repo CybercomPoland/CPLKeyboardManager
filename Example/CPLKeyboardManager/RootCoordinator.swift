@@ -23,6 +23,13 @@ class RootCoordinator: MenuViewControllerDelegate {
         navigationController.present(navCon, animated: true, completion: nil)
     }
 
+    func tappedScrollViewButton() {
+        let scrollVC = storyboard.instantiateViewController(withIdentifier: "ScrollViewController")
+        let navCon = UINavigationController(rootViewController: scrollVC)
+        scrollVC.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(dismiss))
+        navigationController.present(navCon, animated: true, completion: nil)
+    }
+
     @objc func dismiss() {
         navigationController.dismiss(animated: true, completion: nil)
     }
