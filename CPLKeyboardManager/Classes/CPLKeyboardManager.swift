@@ -38,6 +38,7 @@ public class CPLKeyboardManager {
 
     private var handlingKeyboardChange = false
     private var keyboardIsShown = false
+    private var waitingForTextViewSelection = false
     private var initialContentInset: UIEdgeInsets? = nil
 
     //In some cases KbEndFrame is the same as KBbeginFrame despite beign different (for example user taps on search bar and bar with predictions disappears)
@@ -71,39 +72,27 @@ public class CPLKeyboardManager {
     //iOS 10: This method is called every time user taps input field and if keyboard changes
     //iOS 9 & 8: This method is called every time keyboard changes
     @objc func keyboardWillShow(notification: Notification) {
-        if keyboardIsShown || handlingKeyboardChange {
-            return
+        if shouldProcess(givenKeyboardEvent: .WillShow, andNotification: notification) {
+            handleKeyboardEvent(ofType: .WillShow, notification: notification)
         }
+    }
 
-        if let userInfo = notification.userInfo,
-            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect {
-
-            if isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
-                return
-            }
-
-            handleKeyboardEvent(ofType: .Show, userInfo: userInfo)
+    @objc func keyboardDidShow(notification: Notification) {
+        if shouldProcess(givenKeyboardEvent: .DidShow, andNotification: notification) {
+            handleKeyboardEvent(ofType: .DidShow, notification: notification)
         }
     }
 
     @objc func keyboardWillChange(notification: Notification) {
-        if !keyboardIsShown || handlingKeyboardChange {
-            return
+        if shouldProcess(givenKeyboardEvent: .WillChange, andNotification: notification) {
+            handleKeyboardEvent(ofType: .WillChange, notification: notification)
         }
+    }
 
-        guard let userInfo = notification.userInfo,
-            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect else {
-                return
+    @objc func keyboardDidChange(notification: Notification) {
+        if shouldProcess(givenKeyboardEvent: .DidChange, andNotification: notification) {
+            handleKeyboardEvent(ofType: .DidChange, notification: notification)
         }
-
-        if  isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) ||
-            isKeyboardBeingHidden(beginRect: beginKeyboardRect, endRect: endKeyboardRect) { //hiding is handled in KBWillHide
-            return
-        }
-
-        handleKeyboardEvent(ofType: .Change, userInfo: userInfo)
     }
 
     @objc func keyboardWillHide(notification: Notification) {
@@ -122,8 +111,71 @@ public class CPLKeyboardManager {
         lastKeyboardHeightAfterChange = 0.0
     }
 
-    private func handleKeyboardEvent(ofType type: KeyboardEventType,  userInfo: [AnyHashable:Any]) {
-        guard let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
+    //TextView should be processed in Didxxxxx series of keyboard events (due to incorrect selectedRange value during willxxxxx events)
+    private func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andNotification notification: Notification) -> Bool {
+        guard let userInfo = notification.userInfo,
+            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
+            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
+            let currentFirstResponder = UIResponder.getCurrentFirstResponder() as? UIView else {
+            return false
+        }
+
+        if isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
+            return false
+        }
+
+        let isResponderTextView = currentFirstResponder.isKind(of: UITextView.self)
+
+        switch event {
+        case .WillShow:
+            if !isResponderTextView {
+                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
+            } else {
+                return false
+            }
+        case .DidShow:
+            if isResponderTextView {
+                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
+            } else {
+                return false
+            }
+        case .WillChange:
+            if !isResponderTextView {
+                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
+            } else {
+                return false
+            }
+        case .DidChange:
+            if isResponderTextView {
+                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
+            } else {
+                return false
+            }
+        }
+    }
+
+    private func currentKeyboardStateAllowsForProceeding(consideringGivenEvent event: KeyboardEventType, beginKeyboardRect: CGRect, andEndKeyboardRect endKeyboardRect: CGRect) -> Bool {
+        switch event {
+        case .WillShow, .DidShow:
+            if keyboardIsShown || handlingKeyboardChange {
+                return false
+            } else {
+                return true
+            }
+        case .WillChange, .DidChange:
+            if !keyboardIsShown ||
+                handlingKeyboardChange ||
+                isKeyboardBeingHidden(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
+                return false
+            } else {
+                return true
+            }
+        }
+    }
+
+    private func handleKeyboardEvent(ofType type: KeyboardEventType,  notification: Notification) {
+        guard let userInfo = notification.userInfo,
+            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
             let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
             let view = viewController?.view,
             let currentFirstResponderView = UIResponder.getCurrentFirstResponder() as? UIView,
@@ -134,29 +186,28 @@ public class CPLKeyboardManager {
 
         let convertedBeginKeyboardRect = view.convert(beginKeyboardRect, to: view.window)
         let convertedEndKeyboardRect = view.convert(endKeyboardRect, from: view.window)
-        let convertedFirstResponderView = view.convert(currentFirstResponderView.frame, from: currentFirstResponderView.superview)
+        let convertedFirstResponderRect = getRect(forGivenFirstResponder: currentFirstResponderView, convertedToCoordinatesSystemOf: view)
 
         var insetDifference: CGFloat
         switch type {
-
-        case .Show:
+        case .WillShow, .DidShow: //there should not be situation when for single currentFirstResponder both WillShow and DidShow will be handled here
             saveCurrentContentInset()
             insetDifference = getBottomInsetChangeForKeyboardShown(keyboardRect: endKeyboardRect)
-        case .Change:
+        case .WillChange, .DidChange:
             handlingKeyboardChange = true
             insetDifference = getBottomInsetChangeForKeboardChanged(beginKeyboardRect: beginKeyboardRect, endKeyboardRect: endKeyboardRect)
         }
 
-        let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderView, keyboardRect: endKeyboardRect)
+        let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: endKeyboardRect)
 
         performAnimation(withDuration: duration.doubleValue, andOptions: UIViewAnimationOptions(rawValue: animationCurve.uintValue), insetDifference: insetDifference, newContentOffset: newContentOffset, completion: { [weak self] in
 
             self?.lastKeyboardHeightAfterChange = endKeyboardRect.height
 
             switch type {
-            case .Show:
+            case .WillShow, .DidShow:
                 self?.keyboardIsShown = true
-            case .Change:
+            case .WillChange, .DidChange:
                 self?.handlingKeyboardChange = false
             }
         })
@@ -172,6 +223,15 @@ public class CPLKeyboardManager {
                 }
             }
             }, completion: { _ in completion() })
+    }
+
+    private func getRect(forGivenFirstResponder firstResponder: UIView, convertedToCoordinatesSystemOf view: UIView) -> CGRect {
+        let convertedRect = view.convert(firstResponder.frame, from: firstResponder.superview)
+
+        if let textView = firstResponder as? UITextView {
+           let selectedRange = textView.selectedRange
+        }
+        return convertedRect
     }
 
     private func saveCurrentContentInset() {
@@ -193,6 +253,8 @@ public class CPLKeyboardManager {
             return false
         }
     }
+
+    //private func getRect(from)
 
     private func getBottomInsetChangeForKeboardChanged(beginKeyboardRect: CGRect, endKeyboardRect: CGRect) -> CGFloat {
         var keyboardHeightDifference: CGFloat
@@ -235,7 +297,11 @@ public class CPLKeyboardManager {
 
     private func registerForNotifications() {
         notificationCenter.addObserver(self, selector: #selector(keyboardWillShow), name: .UIKeyboardWillShow, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(keyboardDidShow), name: .UIKeyboardDidShow, object: nil)
+
         notificationCenter.addObserver(self, selector: #selector(keyboardWillChange), name: .UIKeyboardWillChangeFrame, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(keyboardDidChange), name: .UIKeyboardDidChangeFrame, object: nil)
+
         notificationCenter.addObserver(self, selector: #selector(keyboardWillHide), name: .UIKeyboardWillHide, object: nil)
     }
 
@@ -244,7 +310,9 @@ public class CPLKeyboardManager {
     }
 
     private enum KeyboardEventType {
-        case Show
-        case Change
+        case WillShow
+        case DidShow
+        case WillChange
+        case DidChange
     }
 }
