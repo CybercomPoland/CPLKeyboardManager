@@ -10,7 +10,7 @@ import Foundation
 
 
 //There is inconcistency for UITextView where keyboardWillShow notification is sent before didBeginEditing (as opposed to UITextField where latter is first)
-//That's why this extension is introduced - to get first responder during keyboardWillShow handling
+//That's why this extension is introduced - to get first responder during events handling
 extension UIResponder {
     @nonobjc private static var firstResponder: UIResponder?
 
@@ -31,11 +31,14 @@ public class CPLKeyboardManager {
     let notificationCenter = NotificationCenter.default
     weak var viewController: UIViewController?
 
-    private var currentTextFieldView: UIView?
+    ////CONFIGURATION////
     private var spaceBetweenEditableAndKeyboardTop: CGFloat = 10.0
+    private var shouldPreserveContentInset = true
+    ////CONFIGURATION////
 
-    private var keyboardChangeWasHandled = false
+    private var handlingKeyboardChange = false
     private var keyboardIsShown = false
+    private var initialContentInset: UIEdgeInsets? = nil
 
     //In some cases KbEndFrame is the same as KBbeginFrame despite beign different (for example user taps on search bar and bar with predictions disappears)
     //This property is used to additionaly keep track of height
@@ -66,45 +69,33 @@ public class CPLKeyboardManager {
     }
 
     //iOS 10: This method is called every time user taps input field and if keyboard changes
-    //iOS 9: This method is called only once (like it should)
-    //iOS 8: This method is called every time keyboard changes
+    //iOS 9 & 8: This method is called every time keyboard changes
     @objc func keyboardWillShow(notification: Notification) {
-        if keyboardIsShown || keyboardChangeWasHandled {
-            keyboardChangeWasHandled = false
+        if keyboardIsShown || handlingKeyboardChange {
             return
         }
 
-        currentTextFieldView = UIResponder.getCurrentFirstResponder() as? UIView
-
         if let userInfo = notification.userInfo,
             let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
-            let view = viewController?.view,
-            let currentTextFieldView = currentTextFieldView  {
+            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect {
 
-            if beginKeyboardRect.equalTo(endKeyboardRect) {
+            if isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
                 return
             }
 
-            let convertedEndKeyboardRect = view.convert(endKeyboardRect, from: view.window)
-            let convertedTextFieldViewRect = view.convert(currentTextFieldView.frame, from: currentTextFieldView.superview)
-
-            handleKeyboardAppearance(fieldRect: convertedTextFieldViewRect, keyboardRect: convertedEndKeyboardRect, userInfo: userInfo)
+            handleKeyboardEvent(ofType: .Show, userInfo: userInfo)
         }
     }
 
     @objc func keyboardWillChange(notification: Notification) {
-        if !keyboardIsShown {
+        if !keyboardIsShown || handlingKeyboardChange {
             return
         }
 
-        currentTextFieldView = UIResponder.getCurrentFirstResponder() as? UIView
-
         guard let userInfo = notification.userInfo,
             let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
-            let view = viewController?.view else {
-            return
+            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect else {
+                return
         }
 
         if  isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) ||
@@ -112,30 +103,82 @@ public class CPLKeyboardManager {
             return
         }
 
-        let insetDifference = calculateBottomInsetChangeForKeboardFrameChange(beginKeyboardRect: beginKeyboardRect, endKeyboardRect: endKeyboardRect)
-
-        tableView?.contentInset.bottom += insetDifference
-        tableView?.scrollIndicatorInsets.bottom += insetDifference
-
-        keyboardChangeWasHandled = true
-        lastKeyboardHeightAfterChange = endKeyboardRect.height
+        handleKeyboardEvent(ofType: .Change, userInfo: userInfo)
     }
 
     @objc func keyboardWillHide(notification: Notification) {
-        if let userInfo = notification.userInfo,
-            let keyboardSize = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect {
+        if let tableView = tableView {
+            let contentInset = initialContentInset ?? UIEdgeInsets.zero
+            tableView.contentInset = contentInset
+            tableView.scrollIndicatorInsets = contentInset
+        } else if let scrollView = scrollView {
+            let contentInset = initialContentInset ?? UIEdgeInsets.zero
+            scrollView.contentInset = UIEdgeInsets.zero
+            scrollView.scrollIndicatorInsets = UIEdgeInsets.zero
+        }
 
-            if let tableView = tableView {
-                tableView.contentInset = UIEdgeInsets.zero
-                tableView.scrollIndicatorInsets = UIEdgeInsets.zero
-            } else if let scrollView = scrollView {
-                scrollView.contentInset = UIEdgeInsets.zero
-                scrollView.scrollIndicatorInsets = UIEdgeInsets.zero
+        keyboardIsShown = false
+        handlingKeyboardChange = false
+        lastKeyboardHeightAfterChange = 0.0
+    }
+
+    private func handleKeyboardEvent(ofType type: KeyboardEventType,  userInfo: [AnyHashable:Any]) {
+        guard let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
+            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
+            let view = viewController?.view,
+            let currentFirstResponderView = UIResponder.getCurrentFirstResponder() as? UIView,
+            let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as? NSNumber,
+            let animationCurve = userInfo[UIKeyboardAnimationCurveUserInfoKey] as? NSNumber else {
+                return
+        }
+
+        let convertedBeginKeyboardRect = view.convert(beginKeyboardRect, to: view.window)
+        let convertedEndKeyboardRect = view.convert(endKeyboardRect, from: view.window)
+        let convertedFirstResponderView = view.convert(currentFirstResponderView.frame, from: currentFirstResponderView.superview)
+
+        var insetDifference: CGFloat
+        switch type {
+
+        case .Show:
+            saveCurrentContentInset()
+            insetDifference = getBottomInsetChangeForKeyboardShown(keyboardRect: endKeyboardRect)
+        case .Change:
+            handlingKeyboardChange = true
+            insetDifference = getBottomInsetChangeForKeboardChanged(beginKeyboardRect: beginKeyboardRect, endKeyboardRect: endKeyboardRect)
+        }
+
+        let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderView, keyboardRect: endKeyboardRect)
+
+        performAnimation(withDuration: duration.doubleValue, andOptions: UIViewAnimationOptions(rawValue: animationCurve.uintValue), insetDifference: insetDifference, newContentOffset: newContentOffset, completion: { [weak self] in
+
+            self?.lastKeyboardHeightAfterChange = endKeyboardRect.height
+
+            switch type {
+            case .Show:
+                self?.keyboardIsShown = true
+            case .Change:
+                self?.handlingKeyboardChange = false
             }
+        })
+    }
 
-            keyboardIsShown = false
-            keyboardChangeWasHandled = false
-            lastKeyboardHeightAfterChange = 0.0
+    private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, insetDifference: CGFloat, newContentOffset: CGPoint?, completion: @escaping (() -> Void)) {
+        UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: { [weak self] in
+            if let tableView = self?.tableView {
+                tableView.contentInset.bottom += insetDifference
+                tableView.scrollIndicatorInsets.bottom += insetDifference
+                if let newContentOffset = newContentOffset {
+                    tableView.setContentOffset(newContentOffset, animated: false)
+                }
+            }
+            }, completion: { _ in completion() })
+    }
+
+    private func saveCurrentContentInset() {
+        if let tableView = tableView {
+            initialContentInset = tableView.contentInset
+        } else if let scrollView = scrollView {
+            initialContentInset = scrollView.contentInset
         }
     }
 
@@ -151,7 +194,7 @@ public class CPLKeyboardManager {
         }
     }
 
-    private func calculateBottomInsetChangeForKeboardFrameChange(beginKeyboardRect: CGRect, endKeyboardRect: CGRect) -> CGFloat {
+    private func getBottomInsetChangeForKeboardChanged(beginKeyboardRect: CGRect, endKeyboardRect: CGRect) -> CGFloat {
         var keyboardHeightDifference: CGFloat
         let endKbHeight = endKeyboardRect.height
 
@@ -165,36 +208,28 @@ public class CPLKeyboardManager {
         return keyboardHeightDifference
     }
 
-    private func handleKeyboardAppearance(fieldRect: CGRect, keyboardRect: CGRect, userInfo: [AnyHashable:Any]) {
-        guard let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as? NSNumber,
-            let animationCurve = userInfo[UIKeyboardAnimationCurveUserInfoKey] as? NSNumber else {
-                return
-        }
-
-        let textFieldRectWithBottomSpace = CGRect(origin: fieldRect.origin, size: CGSize(width: fieldRect.width, height: fieldRect.height + spaceBetweenEditableAndKeyboardTop))
-        let fieldIsCoveredByKeyboard = keyboardRect.intersects(fieldRect)
-        //TODO: Text field: position at middle; TextView: wait 0.01 and calculate position
-        UIView.animate(withDuration: duration.doubleValue, delay: 0, options: UIViewAnimationOptions(rawValue: animationCurve.uintValue), animations: { [weak self] in
-            if let tableView = self?.tableView {
-                let keyboardOverlap = tableView.frame.maxY - keyboardRect.origin.y
-
-                tableView.contentInset.bottom = keyboardOverlap
-                tableView.scrollIndicatorInsets.bottom = keyboardOverlap
-
-                if fieldIsCoveredByKeyboard {
-                    let newContentOffset = CGPoint(x: tableView.contentOffset.x, y: tableView.contentOffset.y + textFieldRectWithBottomSpace.maxY - keyboardRect.origin.y)
-                    tableView.setContentOffset(newContentOffset, animated: false)
-                }
+    private func getBottomInsetChangeForKeyboardShown(keyboardRect: CGRect) -> CGFloat {
+        if let tableView = tableView {
+            var insetFix: CGFloat = 0.0
+            if let currentBottomInset = initialContentInset?.bottom, !shouldPreserveContentInset {
+                insetFix = currentBottomInset
             }
-            }, completion: { [weak self] _ in
-                self?.keyboardIsShown = true
-                self?.lastKeyboardHeightAfterChange = keyboardRect.height })
+            return tableView.frame.maxY - keyboardRect.origin.y - insetFix
+        }
+        return 0.0
     }
 
-    private func handleKeyboardFrameChange(fieldRect: CGRect, keyboardRect: CGRect, userInfo: [AnyHashable:Any]) {
-        guard let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as? NSNumber,
-            let animationCurve = userInfo[UIKeyboardAnimationCurveUserInfoKey] as? NSNumber else {
-                return
+    private func getNewContentOffset(textFieldRect: CGRect, keyboardRect: CGRect) -> CGPoint? {
+        let textFieldRectWithBottomSpace = CGRect(origin: textFieldRect.origin, size: CGSize(width: textFieldRect.width, height: textFieldRect.height + spaceBetweenEditableAndKeyboardTop))
+
+        if textFieldRectWithBottomSpace.intersects(keyboardRect) {
+            if let tableView = tableView {
+                return CGPoint(x: tableView.contentOffset.x, y: tableView.contentOffset.y + textFieldRectWithBottomSpace.maxY - keyboardRect.origin.y)
+            } else {
+                return nil
+            }
+        } else {
+            return nil
         }
     }
 
@@ -206,5 +241,10 @@ public class CPLKeyboardManager {
 
     private func unregisterFromNotifications() {
         notificationCenter.removeObserver(self)
+    }
+
+    private enum KeyboardEventType {
+        case Show
+        case Change
     }
 }
