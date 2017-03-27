@@ -36,17 +36,28 @@ public class CPLKeyboardManager {
     private var shouldPreserveContentInset = true
     ////CONFIGURATION////
 
-    private var handlingKeyboardChange = false
-    private var keyboardIsShown = false
-    private var waitingForTextViewSelection = false
+    private var keyboardState: KeyboardState = .Hidden
+
+    private var showKeyboardOperationCount = 0
+    private var keyboardIsShown: Bool {
+        return showKeyboardOperationCount == 0 && keyboardState == .Shown
+    }
+
+    private var changeKeyboardOperationCount = 0
+    private var handlingKeyboardChange: Bool {
+        return changeKeyboardOperationCount > 0 && keyboardState == .Shown
+    }
+
     private var initialContentInset: UIEdgeInsets? = nil
+    private var currentContentInset: UIEdgeInsets
 
     //In some cases KbEndFrame is the same as KBbeginFrame despite beign different (for example user taps on search bar and bar with predictions disappears)
     //This property is used to additionaly keep track of height
-    private var lastKeyboardHeightAfterChange: CGFloat = 0.0
+    private var currentKeyboardHeight: CGFloat = 0.0
 
     public init(tableView: UITableView, inViewController viewController: UIViewController) {
         self.tableView = tableView
+        self.currentContentInset = tableView.contentInset
         self.viewController = viewController
         self.scrollView = nil
     }
@@ -55,6 +66,7 @@ public class CPLKeyboardManager {
         self.tableView = nil
         self.viewController = viewController
         self.scrollView = scrollView
+        self.currentContentInset = scrollView.contentInset
     }
 
     public func start() {
@@ -94,21 +106,23 @@ public class CPLKeyboardManager {
             handleKeyboardEvent(ofType: .DidChange, notification: notification)
         }
     }
-
+    
     @objc func keyboardWillHide(notification: Notification) {
         if let tableView = tableView {
             let contentInset = initialContentInset ?? UIEdgeInsets.zero
             tableView.contentInset = contentInset
             tableView.scrollIndicatorInsets = contentInset
+            currentContentInset = tableView.contentInset
         } else if let scrollView = scrollView {
             let contentInset = initialContentInset ?? UIEdgeInsets.zero
             scrollView.contentInset = UIEdgeInsets.zero
             scrollView.scrollIndicatorInsets = UIEdgeInsets.zero
+            currentContentInset = scrollView.contentInset
         }
 
-        keyboardIsShown = false
-        handlingKeyboardChange = false
-        lastKeyboardHeightAfterChange = 0.0
+        keyboardState = .Hidden
+        currentKeyboardHeight = 0.0
+        initialContentInset = nil
     }
 
     //TextView should be processed in Didxxxxx series of keyboard events (due to incorrect selectedRange value during willxxxxx events)
@@ -118,6 +132,12 @@ public class CPLKeyboardManager {
             let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
             let currentFirstResponder = UIResponder.getCurrentFirstResponder() as? UIView else {
             return false
+        }
+
+        if #available(iOS 9.0, *) {
+            if let keyboardLocal = userInfo[UIKeyboardIsLocalUserInfoKey] as? Bool, !keyboardLocal {
+                return false
+            }
         }
 
         if isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
@@ -157,14 +177,15 @@ public class CPLKeyboardManager {
     private func currentKeyboardStateAllowsForProceeding(consideringGivenEvent event: KeyboardEventType, beginKeyboardRect: CGRect, andEndKeyboardRect endKeyboardRect: CGRect) -> Bool {
         switch event {
         case .WillShow, .DidShow:
-            if keyboardIsShown || handlingKeyboardChange {
+            if keyboardIsShown ||
+                handlingKeyboardChange ||
+                isKeyboardBeingHidden(beginRect: beginKeyboardRect, endRect: endKeyboardRect) { //somtimes endKB == 0 for some reason for 3rd party keyboards
                 return false
             } else {
                 return true
             }
         case .WillChange, .DidChange:
             if !keyboardIsShown ||
-                handlingKeyboardChange ||
                 isKeyboardBeingHidden(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
                 return false
             } else {
@@ -191,24 +212,28 @@ public class CPLKeyboardManager {
         var insetDifference: CGFloat
         switch type {
         case .WillShow, .DidShow: //there should not be situation when for single currentFirstResponder both WillShow and DidShow will be handled here
-            saveCurrentContentInset()
+            saveInitialContentInsetIfNeeded()
+            showKeyboardOperationCount += 1
             insetDifference = getBottomInsetChangeForKeyboardShown(keyboardRect: endKeyboardRect)
         case .WillChange, .DidChange:
-            handlingKeyboardChange = true
+            changeKeyboardOperationCount += 1
             insetDifference = getBottomInsetChangeForKeboardChanged(beginKeyboardRect: beginKeyboardRect, endKeyboardRect: endKeyboardRect)
         }
 
+        currentContentInset.bottom += insetDifference
+
         let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: endKeyboardRect)
+        currentKeyboardHeight = endKeyboardRect.height
+
 
         performAnimation(withDuration: duration.doubleValue, andOptions: UIViewAnimationOptions(rawValue: animationCurve.uintValue), insetDifference: insetDifference, newContentOffset: newContentOffset, completion: { [weak self] in
 
-            self?.lastKeyboardHeightAfterChange = endKeyboardRect.height
-
             switch type {
             case .WillShow, .DidShow:
-                self?.keyboardIsShown = true
+                self?.keyboardState = .Shown
+                self?.showKeyboardOperationCount -= 1
             case .WillChange, .DidChange:
-                self?.handlingKeyboardChange = false
+                self?.changeKeyboardOperationCount -= 1
             }
         })
     }
@@ -218,9 +243,9 @@ public class CPLKeyboardManager {
             if let tableView = self?.tableView {
                 tableView.contentInset.bottom += insetDifference
                 tableView.scrollIndicatorInsets.bottom += insetDifference
-                if let newContentOffset = newContentOffset {
-                    tableView.setContentOffset(newContentOffset, animated: false)
-                }
+                //TODO: when user scrolls so current first reposnder is out of sight, kb frame change causes scroll despite reasigning current contentOffset below
+                let contentOffset = newContentOffset ?? tableView.contentOffset
+                tableView.setContentOffset(contentOffset, animated: false)
             }
             }, completion: { _ in completion() })
     }
@@ -234,11 +259,13 @@ public class CPLKeyboardManager {
         return convertedRect
     }
 
-    private func saveCurrentContentInset() {
-        if let tableView = tableView {
-            initialContentInset = tableView.contentInset
-        } else if let scrollView = scrollView {
-            initialContentInset = scrollView.contentInset
+    private func saveInitialContentInsetIfNeeded() {
+        if !keyboardIsShown && initialContentInset == nil {
+            if let tableView = tableView {
+                initialContentInset = tableView.contentInset
+            } else if let scrollView = scrollView {
+                initialContentInset = scrollView.contentInset
+            }
         }
     }
 
@@ -247,21 +274,19 @@ public class CPLKeyboardManager {
     }
 
     private func isKeyboardFrameSame(beginRect: CGRect, endRect: CGRect) -> Bool {
-        if endRect.height == lastKeyboardHeightAfterChange {
+        if endRect.height == currentKeyboardHeight {
             return beginRect.equalTo(endRect)
         } else {
             return false
         }
     }
 
-    //private func getRect(from)
-
     private func getBottomInsetChangeForKeboardChanged(beginKeyboardRect: CGRect, endKeyboardRect: CGRect) -> CGFloat {
         var keyboardHeightDifference: CGFloat
         let endKbHeight = endKeyboardRect.height
 
-        if endKbHeight != lastKeyboardHeightAfterChange {
-            keyboardHeightDifference = endKbHeight - lastKeyboardHeightAfterChange
+        if endKbHeight != currentKeyboardHeight {
+            keyboardHeightDifference = endKbHeight - currentKeyboardHeight
         } else {
             //origin is rising from top to bottom - that's why we substract from begin
             keyboardHeightDifference = beginKeyboardRect.origin.y - endKeyboardRect.origin.y
@@ -273,10 +298,12 @@ public class CPLKeyboardManager {
     private func getBottomInsetChangeForKeyboardShown(keyboardRect: CGRect) -> CGFloat {
         if let tableView = tableView {
             var insetFix: CGFloat = 0.0
-            if let currentBottomInset = initialContentInset?.bottom, !shouldPreserveContentInset {
-                insetFix = currentBottomInset
+            if let initialBottomInset = initialContentInset?.bottom, shouldPreserveContentInset {
+                insetFix = initialBottomInset
             }
-            return tableView.frame.maxY - keyboardRect.origin.y - insetFix
+
+            let bottomInsetDiff = tableView.frame.maxY - keyboardRect.origin.y + insetFix - currentContentInset.bottom
+            return bottomInsetDiff
         }
         return 0.0
     }
@@ -303,6 +330,12 @@ public class CPLKeyboardManager {
         notificationCenter.addObserver(self, selector: #selector(keyboardDidChange), name: .UIKeyboardDidChangeFrame, object: nil)
 
         notificationCenter.addObserver(self, selector: #selector(keyboardWillHide), name: .UIKeyboardWillHide, object: nil)
+
+        notificationCenter.addObserver(self, selector: #selector(didbegin), name: .UITextViewTextDidBeginEditing, object: nil)
+    }
+
+    @objc func didbegin(not: Notification) {
+
     }
 
     private func unregisterFromNotifications() {
@@ -314,5 +347,10 @@ public class CPLKeyboardManager {
         case DidShow
         case WillChange
         case DidChange
+    }
+
+    private enum KeyboardState {
+        case Shown
+        case Hidden
     }
 }

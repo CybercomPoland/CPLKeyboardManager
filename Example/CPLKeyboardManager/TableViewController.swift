@@ -24,17 +24,18 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
     }
 
     override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
         keyboardManager?.start()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
         keyboardManager?.stop()
     }
 
     func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
-
 
 //    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
 //        return 950
