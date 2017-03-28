@@ -239,8 +239,9 @@ public class CPLKeyboardManager {
             if let tableView = self?.tableView {
 
                 //TODO: when user scrolls so current first reposnder is out of sight, kb frame change causes scroll despite reasigning current contentOffset below
-                let contentOffset = newContentOffset ?? tableView.contentOffset
-                tableView.setContentOffset(contentOffset, animated: false)
+                if let contentOffset = newContentOffset {
+                    tableView.setContentOffset(contentOffset, animated: false)
+                }
             }
             }, completion: { _ in completion() })
     }
@@ -292,7 +293,14 @@ public class CPLKeyboardManager {
             keyboardHeightDifference = endKbHeight - currentKeyboardHeight
         } else {
             //origin is rising from top to bottom - that's why we substract from begin
-            keyboardHeightDifference = beginKeyboardRect.origin.y - endKeyboardRect.origin.y
+            //after orientation change there is notification for keyboard change (after show) with beginning frame's origin.y equal to screen dimention. This results in duplicating needed content inset
+            let mainScreenBounds = UIScreen.main.bounds
+            if beginKeyboardRect.origin.y == mainScreenBounds.width || beginKeyboardRect.origin.y == mainScreenBounds.height {
+                //if y == to one of those, that means that keyboard is hiding or showing (or - as stated above - there is incorrect notification after rotation) - we don't want to handle this here
+                return 0.0
+            } else {
+                keyboardHeightDifference = beginKeyboardRect.origin.y - endKeyboardRect.origin.y
+            }
         }
 
         return keyboardHeightDifference
