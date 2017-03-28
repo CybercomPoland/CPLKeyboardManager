@@ -11,19 +11,20 @@ import Foundation
 
 //There is inconcistency for UITextView where keyboardWillShow notification is sent before didBeginEditing (as opposed to UITextField where latter is first)
 //That's why this extension is introduced - to get first responder during events handling
-extension UIResponder {
-    @nonobjc private static var firstResponder: UIResponder?
 
-    static func getCurrentFirstResponder() -> UIResponder? {
-        UIResponder.firstResponder = nil
-        UIApplication.shared.sendAction(#selector(findFirstResponder), to: nil, from: nil, for: nil)
-        return UIResponder.firstResponder
-    }
-
-    @objc private func findFirstResponder(sender: AnyObject) {
-        UIResponder.firstResponder = self
-    }
-}
+//extension UIResponder {
+//    @nonobjc private static var firstResponder: UIResponder?
+//
+//    static func getCurrentFirstResponder() -> UIResponder? {
+//        UIResponder.firstResponder = nil
+//        UIApplication.shared.sendAction(#selector(findFirstResponder), to: nil, from: nil, for: nil)
+//        return UIResponder.firstResponder
+//    }
+//
+//    @objc private func findFirstResponder(sender: AnyObject) {
+//        UIResponder.firstResponder = self
+//    }
+//}
 
 public class CPLKeyboardManager {
     let tableView: UITableView?
@@ -32,7 +33,7 @@ public class CPLKeyboardManager {
     weak var viewController: UIViewController?
 
     ////CONFIGURATION////
-    private var spaceBetweenEditableAndKeyboardTop: CGFloat = 10.0
+    private var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
     private var shouldPreserveContentInset = true
     ////CONFIGURATION////
 
@@ -47,6 +48,8 @@ public class CPLKeyboardManager {
     private var handlingKeyboardChange: Bool {
         return changeKeyboardOperationCount > 0 && keyboardState == .Shown
     }
+
+    private var currentFirstResponder: UIView? = nil
 
     private var initialContentInset: UIEdgeInsets? = nil
     private var currentContentInset: UIEdgeInsets
@@ -130,7 +133,7 @@ public class CPLKeyboardManager {
         guard let userInfo = notification.userInfo,
             let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
             let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
-            let currentFirstResponder = UIResponder.getCurrentFirstResponder() as? UIView else {
+            let currentFirstResponder = currentFirstResponder else {
             return false
         }
 
@@ -146,29 +149,18 @@ public class CPLKeyboardManager {
 
         let isResponderTextView = currentFirstResponder.isKind(of: UITextView.self)
 
-        switch event {
-        case .WillShow:
-            if !isResponderTextView {
+        if isResponderTextView {
+            switch event {
+            case .DidShow, .DidChange:
                 return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
-            } else {
+            case .WillShow, .WillChange:
                 return false
             }
-        case .DidShow:
-            if isResponderTextView {
+        } else {
+            switch event {
+            case .WillShow,. WillChange:
                 return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
-            } else {
-                return false
-            }
-        case .WillChange:
-            if !isResponderTextView {
-                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
-            } else {
-                return false
-            }
-        case .DidChange:
-            if isResponderTextView {
-                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: beginKeyboardRect, andEndKeyboardRect: endKeyboardRect)
-            } else {
+            case .DidShow, .DidChange:
                 return false
             }
         }
@@ -199,7 +191,7 @@ public class CPLKeyboardManager {
             let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
             let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
             let view = viewController?.view,
-            let currentFirstResponderView = UIResponder.getCurrentFirstResponder() as? UIView,
+            let currentFirstResponderView = currentFirstResponder,
             let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as? NSNumber,
             let animationCurve = userInfo[UIKeyboardAnimationCurveUserInfoKey] as? NSNumber else {
                 return
@@ -214,16 +206,16 @@ public class CPLKeyboardManager {
         case .WillShow, .DidShow: //there should not be situation when for single currentFirstResponder both WillShow and DidShow will be handled here
             saveInitialContentInsetIfNeeded()
             showKeyboardOperationCount += 1
-            insetDifference = getBottomInsetChangeForKeyboardShown(keyboardRect: endKeyboardRect)
+            insetDifference = getBottomInsetChangeForKeyboardShown(keyboardRect: convertedEndKeyboardRect)
         case .WillChange, .DidChange:
             changeKeyboardOperationCount += 1
-            insetDifference = getBottomInsetChangeForKeboardChanged(beginKeyboardRect: beginKeyboardRect, endKeyboardRect: endKeyboardRect)
+            insetDifference = getBottomInsetChangeForKeboardChanged(beginKeyboardRect: convertedBeginKeyboardRect, endKeyboardRect: convertedEndKeyboardRect)
         }
 
         currentContentInset.bottom += insetDifference
 
-        let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: endKeyboardRect)
-        currentKeyboardHeight = endKeyboardRect.height
+        let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: convertedEndKeyboardRect)
+        currentKeyboardHeight = convertedEndKeyboardRect.height
 
 
         performAnimation(withDuration: duration.doubleValue, andOptions: UIViewAnimationOptions(rawValue: animationCurve.uintValue), insetDifference: insetDifference, newContentOffset: newContentOffset, completion: { [weak self] in
@@ -239,10 +231,13 @@ public class CPLKeyboardManager {
     }
 
     private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, insetDifference: CGFloat, newContentOffset: CGPoint?, completion: @escaping (() -> Void)) {
+
+        tableView?.contentInset.bottom += insetDifference
+        tableView?.scrollIndicatorInsets.bottom += insetDifference
+
         UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: { [weak self] in
             if let tableView = self?.tableView {
-                tableView.contentInset.bottom += insetDifference
-                tableView.scrollIndicatorInsets.bottom += insetDifference
+
                 //TODO: when user scrolls so current first reposnder is out of sight, kb frame change causes scroll despite reasigning current contentOffset below
                 let contentOffset = newContentOffset ?? tableView.contentOffset
                 tableView.setContentOffset(contentOffset, animated: false)
@@ -253,8 +248,16 @@ public class CPLKeyboardManager {
     private func getRect(forGivenFirstResponder firstResponder: UIView, convertedToCoordinatesSystemOf view: UIView) -> CGRect {
         let convertedRect = view.convert(firstResponder.frame, from: firstResponder.superview)
 
-        if let textView = firstResponder as? UITextView {
-           let selectedRange = textView.selectedRange
+        if let textView = firstResponder as? UITextView,
+            let selectedTextRange = textView.selectedTextRange,
+            let selectionRects = textView.selectionRects(for: selectedTextRange) as? [UITextSelectionRect] {
+
+            if let lowestTextSelectionRect = selectionRects.reduce(selectionRects.first, { (firstRect, secondRect) -> UITextSelectionRect in
+                return firstRect!.rect.origin.y > secondRect.rect.origin.y ? firstRect! : secondRect
+            }) {
+                let convertedLowestRect = view.convert(lowestTextSelectionRect.rect, from: textView)
+                return convertedLowestRect
+            }
         }
         return convertedRect
     }
@@ -331,11 +334,19 @@ public class CPLKeyboardManager {
 
         notificationCenter.addObserver(self, selector: #selector(keyboardWillHide), name: .UIKeyboardWillHide, object: nil)
 
-        notificationCenter.addObserver(self, selector: #selector(didbegin), name: .UITextViewTextDidBeginEditing, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(didBeginEditing), name: .UITextViewTextDidBeginEditing, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(didEndEditing), name: .UITextViewTextDidEndEditing, object: nil)
+
+        notificationCenter.addObserver(self, selector: #selector(didBeginEditing), name: .UITextFieldTextDidBeginEditing, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(didEndEditing), name: .UITextFieldTextDidEndEditing, object: nil)
     }
 
-    @objc func didbegin(not: Notification) {
+    @objc func didBeginEditing(notification: Notification) {
+        currentFirstResponder = notification.object as? UIView
+    }
 
+    @objc func didEndEditing(notification: Notification) {
+        currentFirstResponder = nil
     }
 
     private func unregisterFromNotifications() {
