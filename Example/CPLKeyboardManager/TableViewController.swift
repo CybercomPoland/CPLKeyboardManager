@@ -9,6 +9,32 @@
 import UIKit
 import CPLKeyboardManager
 
+private enum CellProperties: Int {
+    case TextField = 0
+    case Label
+    case TextView
+
+    func getHeight() -> CGFloat {
+        switch self {
+        case .TextField, .Label:
+            return 44
+        case .TextView:
+            return 200
+        }
+    }
+
+    func reuseId() -> String {
+        switch self {
+        case .TextField:
+            return "tableViewCellWithTextField"
+        case .Label:
+            return "tableViewCell"
+        case .TextView:
+            return "tableViewCellWithTextView"
+        }
+    }
+}
+
 class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDataSource, UITableViewDelegate, UITextViewDelegate {
 
     @IBOutlet weak var tableView: UITableView!
@@ -19,8 +45,8 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
         super.viewDidLoad()
         keyboardManager = CPLKeyboardManager(tableView: tableView, inViewController: self)
         tableView.delegate = self
-        tableView.estimatedRowHeight = 44
-        tableView.rowHeight = UITableViewAutomaticDimension
+        //tableView.estimatedRowHeight = 44
+        //tableView.rowHeight = UITableViewAutomaticDimension
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -37,9 +63,21 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
         return 1
     }
 
-//    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-//        return 950
-//    }
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        //tableView.estimatedRowHeight = 44
+    }
+
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        let modulo = indexPath.row % 3
+        if modulo == 0 {
+            return 44.0
+        } else if modulo == 1 {
+            return 44.0
+        } else if modulo == 2 {
+            return 200.0
+        }
+        return 44.0
+    }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         var reusableId: String

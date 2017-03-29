@@ -33,10 +33,11 @@ public class CPLKeyboardManager {
     weak var viewController: UIViewController?
 
     ////CONFIGURATION////
-    private var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
-    private var shouldPreserveContentInset = true
+    public var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
+    public var shouldPreserveContentInset = true
     ////CONFIGURATION////
 
+    private var mode: Mode
     private var keyboardState: KeyboardState = .Hidden
 
     private var showKeyboardOperationCount = 0
@@ -54,22 +55,24 @@ public class CPLKeyboardManager {
     private var initialContentInset: UIEdgeInsets? = nil
     private var currentContentInset: UIEdgeInsets
 
-    //In some cases KbEndFrame is the same as KBbeginFrame despite beign different (for example user taps on search bar and bar with predictions disappears)
+    //In some cases KbEndFrame is the same as KBbeginFrame despite beign actually different (for example user taps on search bar and bar with predictions disappears)
     //This property is used to additionaly keep track of height
     private var currentKeyboardHeight: CGFloat = 0.0
 
     public init(tableView: UITableView, inViewController viewController: UIViewController) {
-        self.tableView = tableView
         self.currentContentInset = tableView.contentInset
         self.viewController = viewController
+        self.tableView = tableView
         self.scrollView = nil
+        self.mode = .TableView
     }
 
     public init(scrollView: UIScrollView, inViewController viewController: UIViewController) {
-        self.tableView = nil
-        self.viewController = viewController
-        self.scrollView = scrollView
         self.currentContentInset = scrollView.contentInset
+        self.viewController = viewController
+        self.tableView = nil
+        self.scrollView = scrollView
+        self.mode = .ScrollView
     }
 
     public func start() {
@@ -111,18 +114,17 @@ public class CPLKeyboardManager {
     }
     
     @objc func keyboardWillHide(notification: Notification) {
-        if let tableView = tableView {
-            let contentInset = initialContentInset ?? UIEdgeInsets.zero
-            tableView.contentInset = contentInset
-            tableView.scrollIndicatorInsets = contentInset
-            currentContentInset = tableView.contentInset
-        } else if let scrollView = scrollView {
-            let contentInset = initialContentInset ?? UIEdgeInsets.zero
-            scrollView.contentInset = UIEdgeInsets.zero
-            scrollView.scrollIndicatorInsets = UIEdgeInsets.zero
-            currentContentInset = scrollView.contentInset
+        let contentInset = initialContentInset ?? UIEdgeInsets.zero
+        switch mode {
+        case .TableView:
+            tableView?.contentInset = contentInset
+            tableView?.scrollIndicatorInsets = contentInset
+        case .ScrollView:
+            scrollView?.contentInset = contentInset
+            scrollView?.scrollIndicatorInsets = contentInset
         }
 
+        currentContentInset = contentInset
         keyboardState = .Hidden
         currentKeyboardHeight = 0.0
         initialContentInset = nil
@@ -144,6 +146,11 @@ public class CPLKeyboardManager {
         }
 
         if isKeyboardFrameSame(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
+            return false
+        }
+
+        let screenBounds = UIScreen.main.bounds
+        if endKeyboardRect.maxY < screenBounds.height {
             return false
         }
 
@@ -232,15 +239,24 @@ public class CPLKeyboardManager {
 
     private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, insetDifference: CGFloat, newContentOffset: CGPoint?, completion: @escaping (() -> Void)) {
 
-        tableView?.contentInset.bottom += insetDifference
-        tableView?.scrollIndicatorInsets.bottom += insetDifference
+        switch mode {
+        case .TableView:
+            tableView?.contentInset.bottom += insetDifference
+            tableView?.scrollIndicatorInsets.bottom += insetDifference
+        case .ScrollView:
+            scrollView?.contentInset.bottom += insetDifference
+            scrollView?.scrollIndicatorInsets.bottom += insetDifference
+        }
 
         UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: { [weak self] in
-            if let tableView = self?.tableView {
-
-                //TODO: when user scrolls so current first reposnder is out of sight, kb frame change causes scroll despite reasigning current contentOffset below
-                if let contentOffset = newContentOffset {
-                    tableView.setContentOffset(contentOffset, animated: false)
+            //TODO: when user scrolls so current first reposnder is out of sight, kb frame change causes scroll despite reasigning current contentOffset below
+            if let contentOffset = newContentOffset,
+                let strongSelf = self {
+                switch strongSelf.mode {
+                case .TableView:
+                    strongSelf.tableView?.setContentOffset(contentOffset, animated: false)
+                case .ScrollView:
+                    strongSelf.scrollView?.setContentOffset(contentOffset, animated: false)
                 }
             }
             }, completion: { _ in completion() })
@@ -265,10 +281,15 @@ public class CPLKeyboardManager {
 
     private func saveInitialContentInsetIfNeeded() {
         if !keyboardIsShown && initialContentInset == nil {
-            if let tableView = tableView {
-                initialContentInset = tableView.contentInset
-            } else if let scrollView = scrollView {
-                initialContentInset = scrollView.contentInset
+            switch mode {
+            case .TableView:
+                if let tableView = tableView {
+                    initialContentInset = tableView.contentInset
+                }
+            case .ScrollView:
+                if let scrollView = scrollView {
+                    initialContentInset = scrollView.contentInset
+                }
             }
         }
     }
@@ -292,11 +313,10 @@ public class CPLKeyboardManager {
         if endKbHeight != currentKeyboardHeight {
             keyboardHeightDifference = endKbHeight - currentKeyboardHeight
         } else {
-            //origin is rising from top to bottom - that's why we substract from begin
-            //after orientation change there is notification for keyboard change (after show) with beginning frame's origin.y equal to screen dimention. This results in duplicating needed content inset
             let mainScreenBounds = UIScreen.main.bounds
-            if beginKeyboardRect.origin.y == mainScreenBounds.width || beginKeyboardRect.origin.y == mainScreenBounds.height {
-                //if y == to one of those, that means that keyboard is hiding or showing (or - as stated above - there is incorrect notification after rotation) - we don't want to handle this here
+            if beginKeyboardRect.origin.y == mainScreenBounds.height {
+                //after orientation change there is 'change' notification for keyboard (after 'show') with beginning frame's origin.y equal to screen height.
+                //so, if origin.y == to height of the screen, that means that we're dealing with such situation (since this method handles kb frame changes only) - we don't want to handle this as we would end up with duplicated inset (we already calculated inset after 'show' notification)
                 return 0.0
             } else {
                 keyboardHeightDifference = beginKeyboardRect.origin.y - endKeyboardRect.origin.y
@@ -307,27 +327,44 @@ public class CPLKeyboardManager {
     }
 
     private func getBottomInsetChangeForKeyboardShown(keyboardRect: CGRect) -> CGFloat {
-        if let tableView = tableView {
-            var insetFix: CGFloat = 0.0
-            if let initialBottomInset = initialContentInset?.bottom, shouldPreserveContentInset {
-                insetFix = initialBottomInset
-            }
-
-            let bottomInsetDiff = tableView.frame.maxY - keyboardRect.origin.y + insetFix - currentContentInset.bottom
-            return bottomInsetDiff
+        var insetFix: CGFloat = 0.0
+        if let initialBottomInset = initialContentInset?.bottom, shouldPreserveContentInset {
+            insetFix = initialBottomInset
         }
-        return 0.0
+
+        var bottomInsetDiff: CGFloat = 0.0
+
+        switch mode {
+        case .TableView:
+            if let tableView = tableView {
+                bottomInsetDiff = tableView.frame.maxY - keyboardRect.origin.y + insetFix - currentContentInset.bottom
+            }
+        case .ScrollView:
+            if let scrollView = scrollView {
+                bottomInsetDiff = scrollView.frame.maxY - keyboardRect.origin.y + insetFix - currentContentInset.bottom
+            }
+        }
+
+        return bottomInsetDiff
     }
 
     private func getNewContentOffset(textFieldRect: CGRect, keyboardRect: CGRect) -> CGPoint? {
         let textFieldRectWithBottomSpace = CGRect(origin: textFieldRect.origin, size: CGSize(width: textFieldRect.width, height: textFieldRect.height + spaceBetweenEditableAndKeyboardTop))
 
         if textFieldRectWithBottomSpace.intersects(keyboardRect) {
-            if let tableView = tableView {
-                return CGPoint(x: tableView.contentOffset.x, y: tableView.contentOffset.y + textFieldRectWithBottomSpace.maxY - keyboardRect.origin.y)
-            } else {
-                return nil
+            var contentOffset: CGPoint? = nil
+
+            switch mode {
+            case .TableView:
+                if let tableView = tableView {
+                    return CGPoint(x: tableView.contentOffset.x, y: tableView.contentOffset.y + textFieldRectWithBottomSpace.maxY - keyboardRect.origin.y)
+                }
+            case .ScrollView:
+                if let scrollView = scrollView {
+                    return CGPoint(x: scrollView.contentOffset.x, y: scrollView.contentOffset.y + textFieldRectWithBottomSpace.maxY - keyboardRect.origin.y)
+                }
             }
+            return contentOffset
         } else {
             return nil
         }
@@ -371,5 +408,10 @@ public class CPLKeyboardManager {
     private enum KeyboardState {
         case Shown
         case Hidden
+    }
+
+    private enum Mode {
+        case TableView
+        case ScrollView
     }
 }
