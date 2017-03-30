@@ -46,7 +46,7 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
         keyboardManager = CPLKeyboardManager(tableView: tableView, inViewController: self)
         tableView.delegate = self
         //tableView.estimatedRowHeight = 44
-        //tableView.rowHeight = UITableViewAutomaticDimension
+        tableView.rowHeight = UITableViewAutomaticDimension
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -64,20 +64,21 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
-        //tableView.estimatedRowHeight = 44
+        //tableView.rowHeight = UITableViewAutomaticDimension
     }
 
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        let modulo = indexPath.row % 3
-        if modulo == 0 {
-            return 44.0
-        } else if modulo == 1 {
-            return 44.0
-        } else if modulo == 2 {
-            return 200.0
-        }
-        return 44.0
-    }
+ //   func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+ //       return UITableViewAutomaticDimension
+////        let modulo = indexPath.row % 3
+////        if modulo == 0 {
+////            return 44.0
+////        } else if modulo == 1 {
+////            return 44.0
+////        } else if modulo == 2 {
+////            return 200.0
+////        }
+////        return 44.0
+ //   }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         var reusableId: String
