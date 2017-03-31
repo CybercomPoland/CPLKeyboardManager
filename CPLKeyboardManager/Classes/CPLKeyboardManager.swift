@@ -30,29 +30,18 @@ public class CPLKeyboardManager {
     let tableView: UITableView?
     let scrollView: UIScrollView?
     let notificationCenter = NotificationCenter.default
-    weak var viewController: UIViewController?
+    let view: UIView
 
     ////CONFIGURATION////
     public var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
     public var shouldPreserveContentInset = true
     public var defaultAnimationDuration: Double = 0.25 //used when duration is not provided in userInfo
+    public var keyboardDismissMode: UIScrollViewKeyboardDismissMode = .interactive
     ////CONFIGURATION////
 
     private var mode: Mode
     private var keyboardState: KeyboardState = .Hidden
-    private var isKeyboardVisible: Bool = false //we set this in didChange (as undocked kb doesn't send will/did show/hide)
-
-//    private var showKeyboardOperationCount = 0
-//    private var keyboardIsShown: Bool {
-//        return showKeyboardOperationCount == 0 && keyboardState == .Shown
-//    }
-
-//    private var changeKeyboardOperationCount = 0
-//    private var handlingKeyboardChange: Bool {
-//        return changeKeyboardOperationCount > 0 && keyboardState == .Shown
-//    }
-
-    private var standardKeyboard = false
+    private var isTracking: Bool = false
 
     private var currentFirstResponder: UIView? = nil
 
@@ -65,78 +54,88 @@ public class CPLKeyboardManager {
 
     public init(tableView: UITableView, inViewController viewController: UIViewController) {
         self.currentContentInset = tableView.contentInset
-        self.viewController = viewController
         self.tableView = tableView
+        self.tableView?.keyboardDismissMode = keyboardDismissMode
         self.scrollView = nil
         self.mode = .TableView
+        self.view = viewController.view
+        self.commonInit()
     }
 
     public init(scrollView: UIScrollView, inViewController viewController: UIViewController) {
         self.currentContentInset = scrollView.contentInset
-        self.viewController = viewController
         self.tableView = nil
         self.scrollView = scrollView
+        self.scrollView?.keyboardDismissMode = keyboardDismissMode
         self.mode = .ScrollView
+        self.view = viewController.view
+        commonInit()
+    }
+
+    private func commonInit() {
+        self.registerForNotifications()
+        self.isTracking = false
     }
 
     public func start() {
-        self.registerForNotifications()
+        self.isTracking = true
     }
 
     public func stop() {
-        self.unregisterFromNotifications()
+        self.isTracking = false
     }
 
     deinit {
         self.unregisterFromNotifications()
     }
 
-    //iOS 10: This method is called every time user taps input field and if keyboard changes
-    //iOS 9 & 8: This method is called every time keyboard changes
     @objc func keyboardWillShow(notification: Notification) {
-        let endKb = (notification.userInfo![UIKeyboardFrameEndUserInfoKey] as! CGRect)
-        print("\(#function) \n      beginKbFrame: \(notification.userInfo![UIKeyboardFrameBeginUserInfoKey]!) \n    endKbFrame: \(endKb) \n    maxY: \(endKb.maxY)")
+        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
+            return
+        }
 
-        standardKeyboard = true
-        if shouldProcess(givenKeyboardEvent: .WillShow, andNotification: notification) {
-            handleKeyboardEvent(ofType: .WillShow, notification: notification)
+        if shouldProcess(givenKeyboardEvent: .WillShow, andKeyboardEventData: keyboardData) {
+            handleKeyboardEvent(ofType: .WillShow, withKeyboardEventData: keyboardData)
         }
     }
 
     @objc func keyboardDidShow(notification: Notification) {
-        if shouldProcess(givenKeyboardEvent: .DidShow, andNotification: notification) {
-            handleKeyboardEvent(ofType: .DidShow, notification: notification)
+        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
+            return
+        }
+
+        if shouldProcess(givenKeyboardEvent: .DidShow, andKeyboardEventData: keyboardData) {
+            handleKeyboardEvent(ofType: .DidShow, withKeyboardEventData: keyboardData)
         }
     }
 
     @objc func keyboardDidChange(notification: Notification) {
-        print("\(#function)  standardKb: \(standardKeyboard) \n     beginKbFrame: \(notification.userInfo![UIKeyboardFrameBeginUserInfoKey]!) \n    endKbFrame: \(notification.userInfo![UIKeyboardFrameEndUserInfoKey]!)")
-//        if shouldProcess(givenKeyboardEvent: .DidChange, andNotification: notification) {
-        if let userInfo = notification.userInfo,
-            let begin = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let end = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect {
+        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
+            return
+        }
 
-            isKeyboardVisible = viewController!.view.bounds.contains(end)
-            if isKeyboardVisible && keyboardState == .Shown {
-                if begin != CGRect.zero && end != CGRect.zero { //needs checking if keyboard exits undocked state
-                    handleKeyboardEvent(ofType: .DidChange, notification: notification)
-                }
-            }
-        }
-        
-//        }
     }
-    
+
     @objc func keyboardWillHide(notification: Notification) {
-        let contentInset = initialContentInset ?? UIEdgeInsets.zero
-        switch mode {
-        case .TableView:
-            tableView?.contentInset = contentInset
-            tableView?.scrollIndicatorInsets = contentInset
-        case .ScrollView:
-            scrollView?.contentInset = contentInset
-            scrollView?.scrollIndicatorInsets = contentInset
+        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
+            return
         }
+
+        let contentInset = initialContentInset ?? UIEdgeInsets.zero
+        var duration = keyboardData.duration.doubleValue
+        if duration == 0.0 {
+            duration = defaultAnimationDuration
+        }
+
+        performAnimation(withDuration: duration, andOptions: keyboardData.getDefaultAnimationOptions(), newBottomContentInset: contentInset.bottom, newContentOffset: nil, completion: nil)
+//        switch mode {
+//        case .TableView:
+//            tableView?.contentInset = contentInset
+//            tableView?.scrollIndicatorInsets = contentInset
+//        case .ScrollView:
+//            scrollView?.contentInset = contentInset
+//            scrollView?.scrollIndicatorInsets = contentInset
+//        }
 
         currentContentInset = contentInset
         keyboardState = .Hidden
@@ -144,31 +143,19 @@ public class CPLKeyboardManager {
         initialContentInset = nil
     }
 
-    @objc func keyboardDidHide(notification: Notification) {
-    }
-
     //TextView should be processed in Didxxxxx series of keyboard events (due to incorrect selectedRange value during willxxxxx events)
-    private func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andNotification notification: Notification) -> Bool {
-        guard let userInfo = notification.userInfo,
-            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
-            let view = viewController?.view,
-            let currentFirstResponder = currentFirstResponder else {
+    private func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andKeyboardEventData keyboardData: KeyboardEventData) -> Bool {
+
+        guard let currentFirstResponder = currentFirstResponder else {
             return false
         }
 
-        let convertedBeginKeyboardRect = convertRect(rect: beginKeyboardRect, toView: view, fromView: view.window)
-        let convertedEndKeyboardRect = convertRect(rect: endKeyboardRect, toView: view, fromView: view.window)
+        let convertedBeginKeyboardRect = convertRect(rect: keyboardData.beginKeyboardRect, toView: view, fromView: view.window)
+        let convertedEndKeyboardRect = convertRect(rect: keyboardData.endKeyboardRect, toView: view, fromView: view.window)
 
         //TODO: if not local - should slide whole view
 //        if #available(iOS 9.0, *) {
 //            if let keyboardLocal = userInfo[UIKeyboardIsLocalUserInfoKey] as? Bool, !keyboardLocal {
-//                return false
-//            }
-//        }
-
-//        if event == .WillChange || event == .DidChange {
-//            if isKeyboardUndockedOrSplit(beginRect: beginKeyboardRect, endRect: endKeyboardRect) {
 //                return false
 //            }
 //        }
@@ -200,8 +187,7 @@ public class CPLKeyboardManager {
 
         switch event {
         case .WillShow, .DidShow:
-            if !isShownKeyboardFrameCorrect(beginRect: beginKeyboardRect, endRect: endKeyboardRect) ||
-                isKeyboardBeingHidden(beginRect: beginKeyboardRect, endRect: endKeyboardRect) { //somtimes endKB == 0 for some reason for 3rd party keyboards
+            if isKeyboardBeingHidden(beginRect: beginKeyboardRect, endRect: endKeyboardRect) { //somtimes endKB == 0 for some reason for 3rd party keyboards
                 return false
             } else {
                 return true
@@ -215,19 +201,13 @@ public class CPLKeyboardManager {
         }
     }
 
-    private func handleKeyboardEvent(ofType type: KeyboardEventType,  notification: Notification) {
-        guard let userInfo = notification.userInfo,
-            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
-            let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
-            let view = viewController?.view,
-            let currentFirstResponderView = currentFirstResponder,
-            let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as? NSNumber,
-            let animationCurve = userInfo[UIKeyboardAnimationCurveUserInfoKey] as? NSNumber else {
-                return
+    private func handleKeyboardEvent(ofType type: KeyboardEventType,  withKeyboardEventData keyboardData: KeyboardEventData) {
+        guard let currentFirstResponderView = currentFirstResponder else {
+            return
         }
 
-        let convertedBeginKeyboardRect = view.convert(beginKeyboardRect, from: view.window)
-        let convertedEndKeyboardRect = view.convert(endKeyboardRect, from: view.window)
+        let convertedBeginKeyboardRect = view.convert(keyboardData.beginKeyboardRect, from: view.window)
+        let convertedEndKeyboardRect = view.convert(keyboardData.endKeyboardRect, from: view.window)
         let convertedFirstResponderRect = getRect(forGivenFirstResponder: currentFirstResponderView, convertedToCoordinatesSystemOf: view)
 
         var insetDifference: CGFloat
@@ -247,32 +227,33 @@ public class CPLKeyboardManager {
         let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: convertedEndKeyboardRect)
         currentKeyboardHeight = convertedEndKeyboardRect.height
 
-        let options: UIViewAnimationOptions = [UIViewAnimationOptions(rawValue: animationCurve.uintValue << 16), UIViewAnimationOptions.beginFromCurrentState]
-        let durationValue = duration.doubleValue == 0.0 ? defaultAnimationDuration : duration.doubleValue
+        let options = keyboardData.getDefaultAnimationOptions()
+        let durationValue = keyboardData.duration.doubleValue == 0.0 ? defaultAnimationDuration : keyboardData.duration.doubleValue
 
-        performAnimation(withDuration: durationValue, andOptions: options, insetDifference: insetDifference, newContentOffset: newContentOffset, completion: { [weak self] in
+        performAnimation(withDuration: durationValue, andOptions: options, newBottomContentInset: currentContentInset.bottom, newContentOffset: newContentOffset, completion: { [weak self] in
 
             switch type {
             case .WillShow, .DidShow:
                 self?.keyboardState = .Shown
-                //self?.showKeyboardOperationCount -= 1
             case .WillChange, .DidChange:
                 break
-                //self?.changeKeyboardOperationCount -= 1
             }
         })
     }
 
-    private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, insetDifference: CGFloat, newContentOffset: CGPoint?, completion: @escaping (() -> Void)) {
+    private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, newBottomContentInset: CGFloat, newContentOffset: CGPoint?, completion: (() -> Void)?) {
 
         UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: { [weak self] in
-            switch self!.mode {
+            guard let strongSelf = self else {
+                return
+            }
+            switch strongSelf.mode {
             case .TableView:
-                self?.tableView?.contentInset.bottom += insetDifference
-                self?.tableView?.scrollIndicatorInsets.bottom += insetDifference
+                strongSelf.tableView?.contentInset.bottom = newBottomContentInset
+                strongSelf.tableView?.scrollIndicatorInsets.bottom = newBottomContentInset
             case .ScrollView:
-                self?.scrollView?.contentInset.bottom += insetDifference
-                self?.scrollView?.scrollIndicatorInsets.bottom += insetDifference
+                strongSelf.scrollView?.contentInset.bottom = newBottomContentInset
+                strongSelf.scrollView?.scrollIndicatorInsets.bottom = newBottomContentInset
             }
 
             if let contentOffset = newContentOffset,
@@ -284,7 +265,7 @@ public class CPLKeyboardManager {
                     strongSelf.scrollView?.setContentOffset(contentOffset, animated: false)
                 }
             }
-            }, completion: { _ in completion() })
+            }, completion: { _ in completion?() })
     }
 
     private func convertRect(rect: CGRect, toView: UIView, fromView: UIView?) -> CGRect {
@@ -323,16 +304,6 @@ public class CPLKeyboardManager {
         }
     }
 
-    private func isShownKeyboardFrameCorrect(beginRect: CGRect, endRect: CGRect) -> Bool {
-        if let view = viewController?.view {
-            return endRect.maxY == view.bounds.maxY
-        } else {
-            //should not happen as we pass view controller in init
-            let mainScreen = UIScreen.main.bounds
-            return endRect.maxY == mainScreen.maxY
-        }
-    }
-
     private func isKeyboardBeingHidden(beginRect: CGRect, endRect: CGRect) -> Bool {
         return beginRect.origin.y + beginRect.height == endRect.origin.y
     }
@@ -344,17 +315,6 @@ public class CPLKeyboardManager {
             return false
         }
     }
-
-//    private func isKeyboardUndockedOrSplit(beginRect: CGRect, endRect: CGRect) -> Bool {
-//        //in case of split/undocked state begin (or end) rect has origin and size equal zero (in case of iOS 9)
-//        //in case of iOS 8 we need to check if maxY is above bottom of the screen
-//        let mainScreenBounds = UIScreen.main.bounds
-//        if beginRect == CGRect.zero || endRect == CGRect.zero ||
-//            beginRect.maxY < mainScreenBounds.height || endRect.maxY < mainScreenBounds.height {
-//            return true
-//        }
-//        return false
-//    }
 
     private func getBottomInsetChangeForKeboardChanged(beginKeyboardRect: CGRect, endKeyboardRect: CGRect) -> CGFloat {
         var keyboardHeightDifference: CGFloat
@@ -427,13 +387,14 @@ public class CPLKeyboardManager {
         notificationCenter.addObserver(self, selector: #selector(keyboardDidChange), name: .UIKeyboardDidChangeFrame, object: nil)
 
         notificationCenter.addObserver(self, selector: #selector(keyboardWillHide), name: .UIKeyboardWillHide, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(keyboardDidHide), name: .UIKeyboardDidHide, object: nil)
 
         notificationCenter.addObserver(self, selector: #selector(didBeginEditing), name: .UITextViewTextDidBeginEditing, object: nil)
         notificationCenter.addObserver(self, selector: #selector(didEndEditing), name: .UITextViewTextDidEndEditing, object: nil)
 
         notificationCenter.addObserver(self, selector: #selector(didBeginEditing), name: .UITextFieldTextDidBeginEditing, object: nil)
         notificationCenter.addObserver(self, selector: #selector(didEndEditing), name: .UITextFieldTextDidEndEditing, object: nil)
+
+        //notificationCenter.addObserver(self, selector: <#T##Selector#>, name: .UIDeviceOr, object: <#T##Any?#>)
     }
 
     @objc func didBeginEditing(notification: Notification) {
@@ -463,5 +424,44 @@ public class CPLKeyboardManager {
     private enum Mode {
         case TableView
         case ScrollView
+    }
+
+    private struct KeyboardEventData {
+        let isLocal: Bool?
+        let animationCurve: NSNumber
+        let duration: NSNumber
+        let beginKeyboardRect: CGRect
+        let endKeyboardRect: CGRect
+
+        init?(notification: Notification) {
+            guard let userInfo = notification.userInfo,
+            let beginKeyboardRect = userInfo[UIKeyboardFrameBeginUserInfoKey] as? CGRect,
+                let endKeyboardRect = userInfo[UIKeyboardFrameEndUserInfoKey] as? CGRect,
+            let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as? NSNumber,
+            let animationCurve = userInfo[UIKeyboardAnimationCurveUserInfoKey] as? NSNumber
+            else {
+                return nil
+            }
+
+            if #available(iOS 9.0, *) {
+                if let isLocal = userInfo[UIKeyboardIsLocalUserInfoKey] as? Bool {
+                    self.isLocal = isLocal
+                } else {
+                    isLocal = nil
+                }
+            } else {
+                isLocal = nil
+            }
+
+            self.animationCurve = animationCurve
+            self.beginKeyboardRect = beginKeyboardRect
+            self.endKeyboardRect = endKeyboardRect
+            self.duration = duration
+        }
+
+        func getDefaultAnimationOptions() -> UIViewAnimationOptions {
+            let animationOptions: UIViewAnimationOptions = [UIViewAnimationOptions(rawValue: animationCurve.uintValue << 16), .beginFromCurrentState, .allowUserInteraction]
+            return animationOptions
+        }
     }
 }

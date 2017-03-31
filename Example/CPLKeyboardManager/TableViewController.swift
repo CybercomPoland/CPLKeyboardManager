@@ -67,18 +67,18 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
         //tableView.rowHeight = UITableViewAutomaticDimension
     }
 
- //   func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
- //       return UITableViewAutomaticDimension
-////        let modulo = indexPath.row % 3
-////        if modulo == 0 {
-////            return 44.0
-////        } else if modulo == 1 {
-////            return 44.0
-////        } else if modulo == 2 {
-////            return 200.0
-////        }
-////        return 44.0
- //   }
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        //return UITableViewAutomaticDimension
+        let modulo = indexPath.row % 3
+        if modulo == 0 {
+            return 44.0
+        } else if modulo == 1 {
+            return 44.0
+        } else if modulo == 2 {
+            return 200.0
+        }
+        return 44.0
+    }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         var reusableId: String
@@ -94,7 +94,7 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
         let cell = tableView.dequeueReusableCell(withIdentifier: reusableId)!
 
         if modulo == 1 {
-            cell.textLabel?.text = "Cell number \(indexPath.row)"
+            cell.textLabel?.text = "Cell number \(indexPath.row) sdkjsak sajd kakdkaskd kaksdkaskdkak dkakdak kdakaks kakk dkaskdkasdk kk kaskdka kdkas kdakskask kas "
         } else {
            (cell as? TextViewTableViewCell)?.textView.delegate = self
         }
