@@ -19,7 +19,7 @@ private enum CellProperties: Int {
         case .TextField, .Label:
             return 44
         case .TextView:
-            return 200
+            return 220
         }
     }
 
@@ -45,7 +45,7 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
         super.viewDidLoad()
         keyboardManager = CPLKeyboardManager(tableView: tableView, inViewController: self)
         tableView.delegate = self
-        //tableView.estimatedRowHeight = 44
+       // tableView.estimatedRowHeight = 44
         tableView.rowHeight = UITableViewAutomaticDimension
     }
 
@@ -68,16 +68,18 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        //return UITableViewAutomaticDimension
+//        return UITableViewAutomaticDimension
         let modulo = indexPath.row % 3
-        if modulo == 0 {
-            return 44.0
-        } else if modulo == 1 {
-            return 44.0
-        } else if modulo == 2 {
-            return 200.0
-        }
-        return 44.0
+
+        return CellProperties(rawValue: modulo)?.getHeight() ?? 44.0
+//        if modulo == 0 {
+//            return 44.0
+//        } else if modulo == 1 {
+//            return 44.0
+//        } else if modulo == 2 {
+//            return 200.0
+//        }
+//        return 44.0
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
