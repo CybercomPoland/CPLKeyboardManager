@@ -27,10 +27,11 @@ import Foundation
 //}
 
 public class CPLKeyboardManager {
-    let tableView: UITableView?
-    let scrollView: UIScrollView?
-    let notificationCenter = NotificationCenter.default
-    let view: UIView
+    //implicitly unwrapped optionals, to keep code cleaner. It is safe because we use init to set mode of keyboard manager
+    private let tableView: UITableView!
+    private let scrollView: UIScrollView!
+    private let notificationCenter = NotificationCenter.default
+    private let view: UIView
 
     ////CONFIGURATION////
     public var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
@@ -46,14 +47,15 @@ public class CPLKeyboardManager {
     private var currentFirstResponder: UIView? = nil
 
     private var initialContentInset: UIEdgeInsets? = nil
-    private var currentContentInset: UIEdgeInsets
+    private var previousContentOffset: CGPoint
+    private var shouldSetOffsetInCompletion = false
 
     //In some cases KbEndFrame is the same as KBbeginFrame despite beign actually different (for example user taps on search bar and bar with predictions disappears)
     //This property is used to additionaly keep track of height
     private var currentKeyboardHeight: CGFloat = 0.0
 
     public init(tableView: UITableView, inViewController viewController: UIViewController) {
-        self.currentContentInset = tableView.contentInset
+        self.previousContentOffset = tableView.contentOffset
         self.tableView = tableView
         self.tableView?.keyboardDismissMode = keyboardDismissMode
         self.scrollView = nil
@@ -63,7 +65,7 @@ public class CPLKeyboardManager {
     }
 
     public init(scrollView: UIScrollView, inViewController viewController: UIViewController) {
-        self.currentContentInset = scrollView.contentInset
+        self.previousContentOffset = scrollView.contentOffset
         self.tableView = nil
         self.scrollView = scrollView
         self.scrollView?.keyboardDismissMode = keyboardDismissMode
@@ -113,7 +115,6 @@ public class CPLKeyboardManager {
         guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
             return
         }
-
     }
 
     @objc func keyboardWillHide(notification: Notification) {
@@ -122,14 +123,11 @@ public class CPLKeyboardManager {
         }
 
         let contentInset = initialContentInset ?? UIEdgeInsets.zero
-        var duration = keyboardData.duration.doubleValue
-        if duration == 0.0 {
-            duration = defaultAnimationDuration
-        }
+        let duration = keyboardData.duration.doubleValue
 
         performAnimation(withDuration: duration, andOptions: keyboardData.getDefaultAnimationOptions(), newBottomContentInset: contentInset.bottom, newContentOffset: nil, completion: nil)
 
-        currentContentInset = contentInset
+        //currentContentInset = contentInset
         keyboardState = .Hidden
         currentKeyboardHeight = 0.0
         initialContentInset = nil
@@ -207,22 +205,29 @@ public class CPLKeyboardManager {
         case .WillShow, .DidShow: //there should not be situation when for single currentFirstResponder both WillShow and DidShow will be handled here
             saveInitialContentInsetIfNeeded()
             keyboardState = .Shown
-            //showKeyboardOperationCount += 1
             insetDifference = getBottomInsetChangeForKeyboardShown(keyboardRect: convertedEndKeyboardRect)
         case .WillChange, .DidChange:
-            //changeKeyboardOperationCount += 1
             insetDifference = getBottomInsetChangeForKeboardChanged(beginKeyboardRect: convertedBeginKeyboardRect, endKeyboardRect: convertedEndKeyboardRect)
         }
 
-        currentContentInset.bottom += insetDifference
+        var currentContentInsetBottom: CGFloat!
+        switch mode {
+        case .TableView:
+            currentContentInsetBottom = tableView.contentInset.bottom
+        case .ScrollView:
+            currentContentInsetBottom = scrollView.contentInset.bottom
+        }
 
-        let newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: convertedEndKeyboardRect)
+        let newBottomContentInset = currentContentInsetBottom + insetDifference
+        let  newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: convertedEndKeyboardRect, bottomInset: newBottomContentInset)
+
+        previousContentOffset = newContentOffset ?? previousContentOffset
         currentKeyboardHeight = convertedEndKeyboardRect.height
 
         let options = keyboardData.getDefaultAnimationOptions()
-        let durationValue = keyboardData.duration.doubleValue == 0.0 ? defaultAnimationDuration : keyboardData.duration.doubleValue
+        let durationValue = 13.0// keyboardData.duration.doubleValue
 
-        performAnimation(withDuration: durationValue, andOptions: options, newBottomContentInset: currentContentInset.bottom, newContentOffset: newContentOffset, completion: { [weak self] in
+        performAnimation(withDuration: durationValue, andOptions: options, newBottomContentInset: newBottomContentInset, newContentOffset: newContentOffset, completion: { [weak self] in
 
             switch type {
             case .WillShow, .DidShow:
@@ -235,29 +240,55 @@ public class CPLKeyboardManager {
 
     private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, newBottomContentInset: CGFloat, newContentOffset: CGPoint?, completion: (() -> Void)?) {
 
-        UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: { [weak self] in
+        var animationDuration = duration
+        if animationDuration == 0.0 {
+            animationDuration = defaultAnimationDuration
+        }
+
+        UIView.animate(withDuration: animationDuration, delay: 0.0, options: options, animations: { [weak self] in
             guard let strongSelf = self else {
                 return
             }
             switch strongSelf.mode {
             case .TableView:
-                strongSelf.tableView?.contentInset.bottom = newBottomContentInset
-                strongSelf.tableView?.scrollIndicatorInsets.bottom = newBottomContentInset
+                strongSelf.tableView.contentInset.bottom = newBottomContentInset
+                strongSelf.tableView.scrollIndicatorInsets.bottom = newBottomContentInset
             case .ScrollView:
-                strongSelf.scrollView?.contentInset.bottom = newBottomContentInset
-                strongSelf.scrollView?.scrollIndicatorInsets.bottom = newBottomContentInset
+                strongSelf.scrollView.contentInset.bottom = newBottomContentInset
+                strongSelf.scrollView.scrollIndicatorInsets.bottom = newBottomContentInset
             }
 
-            if let contentOffset = newContentOffset,
-                let strongSelf = self {
-                switch strongSelf.mode {
-                case .TableView:
-                    strongSelf.tableView?.setContentOffset(contentOffset, animated: false)
-                case .ScrollView:
-                    strongSelf.scrollView?.setContentOffset(contentOffset, animated: false)
+            if !strongSelf.shouldSetOffsetInCompletion {
+                if let contentOffset = newContentOffset,
+                    let strongSelf = self {
+
+                    switch strongSelf.mode {
+                    case .TableView:
+                        strongSelf.tableView.setContentOffset(contentOffset, animated: false)
+                    case .ScrollView:
+                        strongSelf.scrollView.setContentOffset(contentOffset, animated: false)
+                    }
                 }
             }
-            }, completion: { _ in completion?() })
+
+            }, completion: { [weak self] _ in
+                if let strongSelf = self,
+                   let newContentOffset = newContentOffset {
+                    if strongSelf.shouldSetOffsetInCompletion {
+
+                        UIView.animate(withDuration: animationDuration, delay: 0.0, options: options, animations: {
+                            switch strongSelf.mode {
+                            case .TableView:
+                                strongSelf.tableView.setContentOffset(newContentOffset, animated: false)
+                            case .ScrollView:
+                                strongSelf.scrollView.setContentOffset(newContentOffset, animated: false)
+                            }
+                            strongSelf.shouldSetOffsetInCompletion = false
+                        }, completion: nil)
+
+                    }
+                }
+                completion?() })
     }
 
     private func convertRect(rect: CGRect, toView: UIView, fromView: UIView?) -> CGRect {
@@ -269,35 +300,37 @@ public class CPLKeyboardManager {
 
         if let textView = firstResponder as? UITextView,
             let selectedTextRange = textView.selectedTextRange,
-            let selectionRects = textView.selectionRects(for: selectedTextRange) as? [UITextSelectionRect] {
-            if let lowestTextSelectionRect = selectionRects.reduce(selectionRects.first, { (firstRect, secondRect) -> UITextSelectionRect in
-                return firstRect!.rect.origin.y > secondRect.rect.origin.y ? firstRect! : secondRect
-            }) {
-                if lowestTextSelectionRect.rect.origin.y == CGFloat.infinity ||
-                    lowestTextSelectionRect.rect.origin.x == CGFloat.infinity {
-                    //carret is in the end of textView
-                    if let lastPosition = textView.position(from: textView.endOfDocument, offset: 0),
-                        let oneBeforeLastPosition = textView.position(from: textView.endOfDocument, offset: -1),
-                        let range = textView.textRange(from: oneBeforeLastPosition, to: lastPosition) {
-                        let lastCharRect = textView.firstRect(for: range)
-                        let lastCharConvertedRect = view.convert(lastCharRect, from: textView)
+            let selectionRects = textView.selectionRects(for: selectedTextRange) as? [UITextSelectionRect],
+            let firstSelectionRect = selectionRects.first {
 
-                        let lastCharRectCorrected = getCorrectedRectForUITextView(selectionRect: lastCharConvertedRect, textView: textView)
+            let lowestTextSelectionRect = selectionRects.reduce(firstSelectionRect, { (firstRect, secondRect) -> UITextSelectionRect in
+                return firstRect.rect.origin.y > secondRect.rect.origin.y ? firstRect : secondRect
+            })
 
-                        return lastCharRectCorrected
-                    }
-                } else {
-                    let convertedLowestRect = view.convert(lowestTextSelectionRect.rect, from: textView)
-                    let lowestRectCorrected = getCorrectedRectForUITextView(selectionRect: convertedLowestRect, textView: textView)
-                    return lowestRectCorrected
+            if lowestTextSelectionRect.rect.origin.y == CGFloat.infinity ||
+                lowestTextSelectionRect.rect.origin.x == CGFloat.infinity {
+                //carret is in the end of textView
+                if let lastPosition = textView.position(from: textView.endOfDocument, offset: 0),
+                    let oneBeforeLastPosition = textView.position(from: textView.endOfDocument, offset: -1),
+                    let range = textView.textRange(from: oneBeforeLastPosition, to: lastPosition) {
+                    let lastCharRect = textView.firstRect(for: range)
+                    let lastCharConvertedRect = view.convert(lastCharRect, from: textView)
+
+                    let lastCharRectCorrected = getCorrectedRectForUITextView(selectionRect: lastCharConvertedRect, textView: textView)
+
+                    return lastCharRectCorrected
                 }
+            } else {
+                let convertedLowestRect = view.convert(lowestTextSelectionRect.rect, from: textView)
+                let lowestRectCorrected = getCorrectedRectForUITextView(selectionRect: convertedLowestRect, textView: textView)
+                return lowestRectCorrected
             }
         }
         return convertedRect
     }
 
-    //This method ensures that contentOffset of textView doesn't affect contentOffset of wrapping scrollView (by changing origin.y of selection rect to match bounds of textview)
-    //For example when users selects text, then scrolls textView up so selection is below it's bounds, then rotates - we scroll main scrollView to selection but we don't want to scroll it further than bottom of this textView + specified margin
+    //This method ensures that position of selection in textView doesn't affect final contentOffset of wrapping scrollView (by changing origin.y of selection rect to match bounds of textview)
+    //For example when users selects text, then scrolls textView up so selection is below it's bounds, then rotates - we scroll main scrollView to selection but we don't want to scroll it further than bottom of this textView + specified margin (without this fix it would because selection was beyond textView's bounds)
     private func getCorrectedRectForUITextView(selectionRect: CGRect, textView: UITextView) -> CGRect {
         let convertedTextViewFrame = view.convert(textView.frame, from: textView.superview)
 
@@ -321,13 +354,9 @@ public class CPLKeyboardManager {
         if initialContentInset == nil {
             switch mode {
             case .TableView:
-                if let tableView = tableView {
-                    initialContentInset = tableView.contentInset
-                }
+                initialContentInset = tableView.contentInset
             case .ScrollView:
-                if let scrollView = scrollView {
-                    initialContentInset = scrollView.contentInset
-                }
+                initialContentInset = scrollView.contentInset
             }
         }
     }
@@ -367,76 +396,59 @@ public class CPLKeyboardManager {
 
         switch mode {
         case .TableView:
-            if let tableView = tableView {
-                bottomInsetDiff = tableView.frame.maxY - keyboardRect.origin.y + insetFix - currentContentInset.bottom
-            }
+            bottomInsetDiff = tableView.frame.maxY - keyboardRect.origin.y + insetFix - tableView.contentInset.bottom
         case .ScrollView:
-            if let scrollView = scrollView {
-                bottomInsetDiff = scrollView.frame.maxY - keyboardRect.origin.y + insetFix - currentContentInset.bottom
-            }
+            bottomInsetDiff = scrollView.frame.maxY - keyboardRect.origin.y + insetFix - scrollView.contentInset.bottom
         }
 
         return bottomInsetDiff
     }
 
-    private func getNewContentOffset(textFieldRect: CGRect, keyboardRect: CGRect) -> CGPoint? {
+    private func getNewContentOffset(textFieldRect: CGRect, keyboardRect: CGRect, bottomInset: CGFloat) -> CGPoint? {
         let newOrigin = CGPoint(x: textFieldRect.origin.x, y: textFieldRect.origin.y - spaceBetweenEditableAndKeyboardTop)
         let textFieldRectWithBottomAndUpperSpace = CGRect(origin: newOrigin, size: CGSize(width: textFieldRect.width, height: textFieldRect.height + 2*spaceBetweenEditableAndKeyboardTop))
 
         var scrollViewRectConverted: CGRect!
+        var currentContentOffset: CGPoint!
+        var maxContentOffset: CGPoint!
 
         switch mode {
         case .TableView:
-            if let tableView = tableView {
-                scrollViewRectConverted = view.convert(tableView.frame, from: tableView.superview)
-            }
+            scrollViewRectConverted = view.convert(tableView.frame, from: tableView.superview)
+            currentContentOffset = tableView.contentOffset
+            maxContentOffset = CGPoint(x: tableView.contentOffset.x, y: tableView.contentSize.height - (tableView.bounds.height - bottomInset))
         case .ScrollView:
-            if let scrollView = scrollView {
-                scrollViewRectConverted = view.convert(scrollView.frame, from: scrollView.superview)
-            }
+            scrollViewRectConverted = view.convert(scrollView.frame, from: scrollView.superview)
+            currentContentOffset = scrollView.contentOffset
+            maxContentOffset = CGPoint(x: scrollView.contentOffset.x, y: scrollView.contentSize.height - (scrollView.bounds.height - bottomInset))
         }
 
-        var contentOffset: CGPoint? = nil
-        var maxContentOffset: CGPoint? = nil
+        var newContentOffset: CGPoint? = nil
 
         if textFieldRectWithBottomAndUpperSpace.intersects(keyboardRect) ||
             textFieldRectWithBottomAndUpperSpace.maxY > keyboardRect.maxY { //rotation case
 
-            switch mode {
-            case .TableView:
-                if let tableView = tableView {
-                    contentOffset = CGPoint(x: tableView.contentOffset.x, y: tableView.contentOffset.y + textFieldRectWithBottomAndUpperSpace.maxY - keyboardRect.origin.y)
-                    maxContentOffset = CGPoint(x: tableView.contentOffset.x, y: tableView.contentSize.height - tableView.bounds.height)
-                }
-            case .ScrollView:
-                if let scrollView = scrollView {
-                    contentOffset = CGPoint(x: scrollView.contentOffset.x, y: scrollView.contentOffset.y + textFieldRectWithBottomAndUpperSpace.maxY - keyboardRect.origin.y)
-                    maxContentOffset = CGPoint(x: scrollView.contentOffset.x, y: scrollView.contentSize.height - scrollView.bounds.height)
-                }
-            }
+            newContentOffset = CGPoint(x: currentContentOffset.x, y: currentContentOffset.y + textFieldRectWithBottomAndUpperSpace.maxY - keyboardRect.origin.y)
         } else if textFieldRectWithBottomAndUpperSpace.minY < scrollViewRectConverted.minY { //control is above view - we need to scroll it down
+
             let distanceBetweenViewTopAndTextFieldTop = scrollViewRectConverted.minY - textFieldRectWithBottomAndUpperSpace.minY
-            switch mode {
-            case .TableView:
-                if let tableView = tableView {
-                    contentOffset = CGPoint(x: tableView.contentOffset.x, y: tableView.contentOffset.y - distanceBetweenViewTopAndTextFieldTop)
-                }
-            case .ScrollView:
-                if let scrollView = scrollView {
-                    contentOffset = CGPoint(x: scrollView.contentOffset.x, y: scrollView.contentOffset.y - distanceBetweenViewTopAndTextFieldTop)
-                }
+            newContentOffset = CGPoint(x: currentContentOffset.x, y: currentContentOffset.y - distanceBetweenViewTopAndTextFieldTop)
+        }
+
+        if let _newContentOffset = newContentOffset {
+            if currentContentOffset.y < 0.0 {
+                //we don't want to handle this immediately as it causes some weird animation issues
+                shouldSetOffsetInCompletion = true
+            }
+
+            if _newContentOffset.y > maxContentOffset.y {
+                newContentOffset?.y = maxContentOffset.y
+            } else if _newContentOffset.y < 0.0 {
+                newContentOffset?.y = 0.0
             }
         }
 
-        if let _contentOffset = contentOffset {
-            if _contentOffset.y < 0.0 {
-                contentOffset?.y = 0.0
-            } else if let _maxContentOffset = maxContentOffset, _contentOffset.y > _maxContentOffset.y {
-                contentOffset?.y = _maxContentOffset.y
-            }
-        }
-
-        return contentOffset
+        return newContentOffset
     }
 
     private func registerForNotifications() {
