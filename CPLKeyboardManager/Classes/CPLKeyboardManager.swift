@@ -118,16 +118,19 @@ public class CPLKeyboardManager {
     }
 
     @objc func keyboardWillHide(notification: Notification) {
+        if keyboardState == .Hidden {
+            return
+        }
+
         guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
             return
         }
 
         let contentInset = initialContentInset ?? UIEdgeInsets.zero
-        let duration = keyboardData.duration.doubleValue
+        let duration = keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration)
 
         performAnimation(withDuration: duration, andOptions: keyboardData.getDefaultAnimationOptions(), newBottomContentInset: contentInset.bottom, newContentOffset: nil, completion: nil)
 
-        //currentContentInset = contentInset
         keyboardState = .Hidden
         currentKeyboardHeight = 0.0
         initialContentInset = nil
@@ -136,36 +139,33 @@ public class CPLKeyboardManager {
     //TextView should be processed in Didxxxxx series of keyboard events (due to incorrect selectedRange value during willxxxxx events)
     private func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andKeyboardEventData keyboardData: KeyboardEventData) -> Bool {
 
-        guard let currentFirstResponder = currentFirstResponder else {
-            return false
-        }
-
         let convertedBeginKeyboardRect = convertRect(rect: keyboardData.beginKeyboardRect, toView: view, fromView: view.window)
         let convertedEndKeyboardRect = convertRect(rect: keyboardData.endKeyboardRect, toView: view, fromView: view.window)
 
-        //TODO: if not local - should slide whole view
-//        if #available(iOS 9.0, *) {
-//            if let keyboardLocal = userInfo[UIKeyboardIsLocalUserInfoKey] as? Bool, !keyboardLocal {
-//                return false
-//            }
-//        }
-
-        let isResponderTextView = currentFirstResponder.isKind(of: UITextView.self)
-
-        if isResponderTextView {
-            switch event {
-            case .DidShow, .DidChange:
-                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: convertedBeginKeyboardRect, andEndKeyboardRect: convertedEndKeyboardRect)
-            case .WillShow, .WillChange:
+        if keyboardData.isLocal {
+            guard let currentFirstResponder = self.currentFirstResponder else {
                 return false
+            }
+
+            let isResponderTextView = currentFirstResponder.isKind(of: UITextView.self)
+
+            if isResponderTextView {
+                switch event {
+                case .DidShow, .DidChange:
+                    return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: convertedBeginKeyboardRect, andEndKeyboardRect: convertedEndKeyboardRect)
+                case .WillShow, .WillChange:
+                    return false
+                }
+            } else {
+                switch event {
+                case .WillShow,. WillChange:
+                    return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: convertedBeginKeyboardRect, andEndKeyboardRect: convertedEndKeyboardRect)
+                case .DidShow, .DidChange:
+                    return false
+                }
             }
         } else {
-            switch event {
-            case .WillShow,. WillChange:
-                return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: convertedBeginKeyboardRect, andEndKeyboardRect: convertedEndKeyboardRect)
-            case .DidShow, .DidChange:
-                return false
-            }
+            return currentKeyboardStateAllowsForProceeding(consideringGivenEvent: event, beginKeyboardRect: convertedBeginKeyboardRect, andEndKeyboardRect: convertedEndKeyboardRect)
         }
     }
 
@@ -192,13 +192,13 @@ public class CPLKeyboardManager {
     }
 
     private func handleKeyboardEvent(ofType type: KeyboardEventType,  withKeyboardEventData keyboardData: KeyboardEventData) {
-        guard let currentFirstResponderView = currentFirstResponder else {
-            return
+
+        if !keyboardData.isLocal {
+            currentFirstResponder = nil //because didEndEditing in such case is later than willShow notif
         }
 
         let convertedBeginKeyboardRect = view.convert(keyboardData.beginKeyboardRect, from: view.window)
         let convertedEndKeyboardRect = view.convert(keyboardData.endKeyboardRect, from: view.window)
-        let convertedFirstResponderRect = getRect(forGivenFirstResponder: currentFirstResponderView, convertedToCoordinatesSystemOf: view)
 
         var insetDifference: CGFloat
         switch type {
@@ -219,13 +219,19 @@ public class CPLKeyboardManager {
         }
 
         let newBottomContentInset = currentContentInsetBottom + insetDifference
-        let  newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: convertedEndKeyboardRect, bottomInset: newBottomContentInset)
+
+        var newContentOffset: CGPoint? = nil
+
+        if let currentFirstResponderView = currentFirstResponder {
+            let convertedFirstResponderRect = getRect(forGivenFirstResponder: currentFirstResponderView, convertedToCoordinatesSystemOf: view)
+            newContentOffset = getNewContentOffset(textFieldRect: convertedFirstResponderRect, keyboardRect: convertedEndKeyboardRect, bottomInset: newBottomContentInset)
+        }
 
         previousContentOffset = newContentOffset ?? previousContentOffset
         currentKeyboardHeight = convertedEndKeyboardRect.height
 
         let options = keyboardData.getDefaultAnimationOptions()
-        let durationValue = 13.0// keyboardData.duration.doubleValue
+        let durationValue = keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration)
 
         performAnimation(withDuration: durationValue, andOptions: options, newBottomContentInset: newBottomContentInset, newContentOffset: newContentOffset, completion: { [weak self] in
 
@@ -240,12 +246,7 @@ public class CPLKeyboardManager {
 
     private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, newBottomContentInset: CGFloat, newContentOffset: CGPoint?, completion: (() -> Void)?) {
 
-        var animationDuration = duration
-        if animationDuration == 0.0 {
-            animationDuration = defaultAnimationDuration
-        }
-
-        UIView.animate(withDuration: animationDuration, delay: 0.0, options: options, animations: { [weak self] in
+        UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: { [weak self] in
             guard let strongSelf = self else {
                 return
             }
@@ -271,12 +272,12 @@ public class CPLKeyboardManager {
                 }
             }
 
-            }, completion: { [weak self] _ in
+            }, completion: { [weak self] finished in
                 if let strongSelf = self,
                    let newContentOffset = newContentOffset {
                     if strongSelf.shouldSetOffsetInCompletion {
 
-                        UIView.animate(withDuration: animationDuration, delay: 0.0, options: options, animations: {
+                        UIView.animate(withDuration: duration, delay: 0.0, options: options, animations: {
                             switch strongSelf.mode {
                             case .TableView:
                                 strongSelf.tableView.setContentOffset(newContentOffset, animated: false)
@@ -496,7 +497,7 @@ public class CPLKeyboardManager {
     }
 
     private struct KeyboardEventData {
-        let isLocal: Bool?
+        let isLocal: Bool
         let animationCurve: NSNumber
         let duration: NSNumber
         let beginKeyboardRect: CGRect
@@ -516,10 +517,10 @@ public class CPLKeyboardManager {
                 if let isLocal = userInfo[UIKeyboardIsLocalUserInfoKey] as? Bool {
                     self.isLocal = isLocal
                 } else {
-                    isLocal = nil
+                    isLocal = true
                 }
             } else {
-                isLocal = nil
+                isLocal = true
             }
 
             self.animationCurve = animationCurve
@@ -531,6 +532,14 @@ public class CPLKeyboardManager {
         func getDefaultAnimationOptions() -> UIViewAnimationOptions {
             let animationOptions: UIViewAnimationOptions = [UIViewAnimationOptions(rawValue: animationCurve.uintValue << 16), .beginFromCurrentState, .allowUserInteraction]
             return animationOptions
+        }
+
+        func getDuration(usingDefaultValue defVal: Double) -> Double {
+            if duration == 0.0 {
+                return defVal
+            } else {
+                return duration.doubleValue
+            }
         }
     }
 }
