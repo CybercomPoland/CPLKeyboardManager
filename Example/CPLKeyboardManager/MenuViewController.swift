@@ -24,5 +24,9 @@ class MenuViewController: UIViewController {
     @IBAction func showScrollView(_ sender: UIButton) {
         delegate?.tappedScrollViewButton()
     }
+
+    @IBAction func showBottomConstraintExample(_ sender: UIButton) {
+        delegate?.tappedBottomConstraintButton()
+    }
 }
 

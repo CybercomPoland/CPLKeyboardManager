@@ -44,6 +44,7 @@ class TableViewController: UIViewController, UISearchBarDelegate, UITableViewDat
     override func viewDidLoad() {
         super.viewDidLoad()
         keyboardManager = CPLKeyboardManager(tableView: tableView, inViewController: self)
+
         tableView.delegate = self
        // tableView.estimatedRowHeight = 44
         tableView.rowHeight = UITableViewAutomaticDimension
