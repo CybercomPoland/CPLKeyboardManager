@@ -19,8 +19,11 @@ public class CPLKeyboardManager {
         manager = CPLKeyboardManagerScrollView(scrollView: scrollView, inViewController: viewController)
     }
 
-    public init(bottomConstraint: NSLayoutConstraint) {
-        manager = CPLKeyboardManagerConstraint(bottomConstraint: bottomConstraint)
+    /**
+     - Parameter bottomConstraint: Constraint that is at bottom of the screen. It must be the one that connects bottom edge (bottom layout guide) with view you want to move when keyboard appears.
+    */
+    public init(bottomConstraint: NSLayoutConstraint, inViewController viewController: UIViewController) {
+        manager = CPLKeyboardManagerConstraint(bottomConstraint: bottomConstraint, inViewController: viewController)
     }
 
     public func start() {
@@ -29,5 +32,9 @@ public class CPLKeyboardManager {
 
     public func stop() {
         manager.stop()
+    }
+
+    public func setHandler(ofType type: EventHandlerType, action: @escaping ((_ keyboardEventData: KeyboardEventData) -> Void), shouldOverride: Bool) {
+        manager.keyboardEventHandlers[type] = (action, shouldOverride)
     }
 }

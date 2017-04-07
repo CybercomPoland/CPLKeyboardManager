@@ -18,16 +18,10 @@ class ScrollViewController: UIViewController {
     @IBOutlet var textFieldsWithAccesoryView: [UITextField]!
 
     var keyboardManager: CPLKeyboardManager?
-    var constraintMode: Bool = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        if constraintMode {
-            keyboardManager = CPLKeyboardManager(bottomConstraint: bottomConstraint)
-        } else {
-            keyboardManager = CPLKeyboardManager(scrollView: scrollView, inViewController: self)
-        }
+        keyboardManager = CPLKeyboardManager(scrollView: scrollView, inViewController: self)
 
         let accView = UIView(frame: CGRect(x: 0, y: 0, width: view.frame.width, height: 60))
         accView.backgroundColor = UIColor.red
