@@ -20,11 +20,19 @@ class ConstraintViewController: UIViewController {
         super.viewDidLoad()
         scrollView.keyboardDismissMode = .interactive
         keyboardManager = CPLKeyboardManager(bottomConstraint: bottomConstraint, inViewController: self)
-        keyboardManager?.setHandler(ofType: .WillShow, action: { [unowned self] (keyboardData) in
+        keyboardManager?.setHandler(forEventType: .willShow, action: { [unowned self] (keyboardData, firstResponder) in
+            print("willShowAdditionalHandler")
             let newContentOffset = CGPoint(x: self.scrollView.contentOffset.x, y: self.scrollView.contentOffset.y + keyboardData.endKeyboardRect.height)
             UIView.animate(withDuration: keyboardData.duration.doubleValue, animations: {
                 self.scrollView.setContentOffset(newContentOffset, animated: false)
             })
+        }, shouldOverride: false)
+        keyboardManager?.setHandler(forEventType: .willHide, action: { (keyboardData, firstResponder) in
+            print("willHideAdditional")
+        }, shouldOverride: false)
+
+        keyboardManager?.setHandler(forEventType: .didShow, action: { (keyboardData, firstResponder) in
+            print("didShowAdditionalHandler")
         }, shouldOverride: false)
     }
 

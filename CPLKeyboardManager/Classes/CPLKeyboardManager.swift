@@ -26,15 +26,34 @@ public class CPLKeyboardManager {
         manager = CPLKeyboardManagerConstraint(bottomConstraint: bottomConstraint, inViewController: viewController)
     }
 
+    /**
+     Starts handling incoming keyboard events.
+    */
     public func start() {
         manager.start()
     }
 
+    /**
+     Stops handling incoming keyboard events. Manager is still registered for events.
+    */
     public func stop() {
         manager.stop()
     }
 
-    public func setHandler(ofType type: EventHandlerType, action: @escaping ((_ keyboardEventData: KeyboardEventData) -> Void), shouldOverride: Bool) {
+    /**
+     Set handler for given keyboard-related event type
+
+     - Parameters:
+        - forEventType: Type of event that should be handled
+        - action: Logic that should be executed when event occurs
+        - keyboardEventData: Gathered data about keyboard event that occured.
+        - firstResponder:   Current first responder that triggered keyboard appearance.
+        - shouldOverride: 
+            - true: Given logic should be executed instead default one.
+            - false: Given logic should be executed with default one. If given event by default doesn't have handler (i.e. willShow when textView is first responder), action passed in this method will be still executed.
+
+     */
+    public func setHandler(forEventType type: KeyboardEventType, action: @escaping ((_ keyboardEventData: KeyboardEventData, _ firstResponder: UIResponder?) -> Void), shouldOverride: Bool) {
         manager.keyboardEventHandlers[type] = (action, shouldOverride)
     }
 }

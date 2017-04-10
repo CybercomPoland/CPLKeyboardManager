@@ -8,37 +8,10 @@
 
 import Foundation
 
-
-//There is inconcistency for UITextView where keyboardWillShow notification is sent before didBeginEditing (as opposed to UITextField where latter is first)
-//That's why this extension is introduced - to get first responder during events handling
-
-//extension UIResponder {
-//    @nonobjc private static var firstResponder: UIResponder?
-//
-//    static func getCurrentFirstResponder() -> UIResponder? {
-//        UIResponder.firstResponder = nil
-//        UIApplication.shared.sendAction(#selector(findFirstResponder), to: nil, from: nil, for: nil)
-//        return UIResponder.firstResponder
-//    }
-//
-//    @objc private func findFirstResponder(sender: AnyObject) {
-//        UIResponder.firstResponder = self
-//    }
-//}
-
 internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
     //implicitly unwrapped optionals, to keep code cleaner. It is safe because we use init to set mode of keyboard manager
     private let tableView: UITableView!
     private let scrollView: UIScrollView!
-
-    ////CONFIGURATION////
-    public var keyboardDismissMode: UIScrollViewKeyboardDismissMode = .interactive {
-        didSet {
-            tableView?.keyboardDismissMode = keyboardDismissMode
-            scrollView?.keyboardDismissMode = keyboardDismissMode
-        }
-    }
-    ////CONFIGURATION////
 
     private var mode: Mode
 
@@ -51,7 +24,6 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
         self.mode = .TableView
         self.previousContentOffset = tableView.contentOffset
         self.tableView = tableView
-        self.tableView?.keyboardDismissMode = keyboardDismissMode
         self.scrollView = nil
         super.init(view: viewController.view)
     }
@@ -61,68 +33,7 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
         self.previousContentOffset = scrollView.contentOffset
         self.tableView = nil
         self.scrollView = scrollView
-        self.scrollView?.keyboardDismissMode = keyboardDismissMode
         super.init(view: viewController.view)
-    }
-
-    override func keyboardWillShow(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-
-
-
-        if shouldProcess(givenKeyboardEvent: .WillShow, andKeyboardEventData: keyboardData) {
-            if areShownKeyboardParametersCorrect(beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
-                //keyboardEventHandlers[.WillShow]?(keyboardData)
-                handleKeyboardShownEvent(withKeyboardEventData: keyboardData)
-            }
-        }
-    }
-
-    override func keyboardDidShow(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-
-        if shouldProcess(givenKeyboardEvent: .DidShow, andKeyboardEventData: keyboardData) {
-            if areShownKeyboardParametersCorrect(beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
-                //keyboardEventHandlers[.DidShow]?(keyboardData)
-                handleKeyboardShownEvent(withKeyboardEventData: keyboardData)
-            }
-        }
-    }
-
-    override func keyboardWillChange(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-    }
-
-    override func keyboardDidChange(notification: Notification) {
-
-    }
-
-    override func keyboardWillHide(notification: Notification) {
-        if keyboardState == .Hidden {
-            return
-        }
-
-        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
-            return
-        }
-
-        let contentInset = initialContentInset ?? UIEdgeInsets.zero
-        let duration = keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration)
-
-        performAnimation(withDuration: duration, andOptions: keyboardData.getDefaultAnimationOptions(), newBottomContentInset: contentInset.bottom, newContentOffset: nil, completion: nil)
-
-        keyboardState = .Hidden
-        initialContentInset = nil
-    }
-
-    override func keyboardDidHide(notification: Notification) {
-
     }
 
     override func didBeginEditing(notification: Notification) {
@@ -131,7 +42,7 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
     }
 
     //TextView should be processed in Didxxxxx series of keyboard events (due to incorrect selectedRange value during willxxxxx events)
-    private func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andKeyboardEventData keyboardData: KeyboardEventData) -> Bool {
+    internal override func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andKeyboardEventData keyboardData: KeyboardEventData) -> Bool {
         if !isTracking {
             return false
         }
@@ -145,16 +56,16 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
 
             if isResponderTextView {
                 switch event {
-                case .DidShow, .DidChange:
+                case .didShow, .willHide:
                     return true
-                case .WillShow, .WillChange:
+                case .willShow, .willChange, .didChange, .didHide:
                     return false
                 }
             } else {
                 switch event {
-                case .WillShow,. WillChange:
+                case .willShow, .willHide:
                     return true
-                case .DidShow, .DidChange:
+                case .didShow, .didChange, .willChange, .didHide:
                     return false
                 }
             }
@@ -163,7 +74,18 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
         }
     }
 
-    private func handleKeyboardShownEvent(withKeyboardEventData keyboardData: KeyboardEventData) {
+    internal override func handleKeyboardEvent(ofType type: KeyboardEventType, withKeyboardData keyboardData: KeyboardEventData) {
+        switch type {
+        case .willShow, .didShow:
+            handleKeyboardShowEvent(withKeyboardEventData: keyboardData)
+        case .willHide:
+            handleKeyboardHideEvent(withKeyboardEventData: keyboardData)
+        default:
+            break
+        }
+    }
+
+    private func handleKeyboardShowEvent(withKeyboardEventData keyboardData: KeyboardEventData) {
 
         if !keyboardData.isLocal {
             currentFirstResponder = nil //because didEndEditing in such case is later than willShow notif
@@ -198,8 +120,22 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
         let durationValue = keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration)
 
         performAnimation(withDuration: durationValue, andOptions: options, newBottomContentInset: newBottomContentInset, newContentOffset: newContentOffset, completion: { [weak self] in
-            self?.keyboardState = .Shown
+            self?.keyboardState = .shown
         })
+    }
+
+    private func handleKeyboardHideEvent(withKeyboardEventData keyboardData: KeyboardEventData) {
+        if keyboardState == .hidden {
+            return
+        }
+
+        let contentInset = initialContentInset ?? UIEdgeInsets.zero
+        let duration = keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration)
+
+        performAnimation(withDuration: duration, andOptions: keyboardData.getDefaultAnimationOptions(), newBottomContentInset: contentInset.bottom, newContentOffset: nil, completion: nil)
+
+        keyboardState = .hidden
+        initialContentInset = nil
     }
 
     private func performAnimation(withDuration duration: Double, andOptions options: UIViewAnimationOptions, newBottomContentInset: CGFloat, newContentOffset: CGPoint?, completion: (() -> Void)?) {

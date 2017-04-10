@@ -19,82 +19,13 @@ internal class CPLKeyboardManagerConstraint: CPLKeyboardManagerBase {
         super.init(view: viewController.view)
     }
 
-    override func keyboardWillShow(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-
-        if shouldProceed(withKeyboardData: keyboardData) {
-            if areShownKeyboardParametersCorrect(beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
-                //keyboardEventHandlers[.WillShow]?(keyboardData)
-                handleKeyboardShownEvent(withKeyboardData: keyboardData)
-            }
-        }
-    }
-
-    override func keyboardDidShow(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-
-        if shouldProceed(withKeyboardData: keyboardData) {
-            if areShownKeyboardParametersCorrect(beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
-                //keyboardEventHandlers[.DidShow]?(keyboardData)
-            }
-        }
-    }
-
-    override func keyboardWillChange(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-
-        if shouldProceed(withKeyboardData: keyboardData) {
-            if areShownKeyboardParametersCorrect(beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
-                //keyboardEventHandlers[.WillChange]?(keyboardData)
-            }
-        }
-    }
-    
-    override func keyboardDidChange(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification) else {
-            return
-        }
-
-        if shouldProceed(withKeyboardData: keyboardData) {
-            if areShownKeyboardParametersCorrect(beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
-                //keyboardEventHandlers[.DidChange]?(keyboardData)
-            }
-        }
-    }
-
-    override func keyboardWillHide(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
-            return
-        }
-
-        //keyboardEventHandlers[.WillHide]?(keyboardData)
-        bottomConstraint.constant = initialBottomConstraint
-        performAnimation(withDuration: keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration), andAnimationOptions: keyboardData.getDefaultAnimationOptions(), action: { [weak self] in
-            self?.view.layoutIfNeeded()
-        }, completion: nil)
-    }
-
-    override func keyboardDidHide(notification: Notification) {
-        guard let keyboardData = KeyboardEventData(notification: notification), isTracking else {
-            return
-        }
-
-        //keyboardEventHandlers[.DidHide]?(keyboardData)
-    }
-
-    private func shouldProceed(withKeyboardData keyboardData: KeyboardEventData) -> Bool {
+    internal override func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andKeyboardEventData keyboardData: KeyboardEventData) -> Bool {
         if !isTracking {
             return false
         }
 
         if keyboardData.isLocal {
-            guard let currentFirstResponder = self.currentFirstResponder else {
+            guard let _ = self.currentFirstResponder else {
                 return false
             }
             return true
@@ -103,7 +34,18 @@ internal class CPLKeyboardManagerConstraint: CPLKeyboardManagerBase {
         }
     }
 
-    private func handleKeyboardShownEvent(withKeyboardData keyboardData: KeyboardEventData) {
+    internal override func handleKeyboardEvent(ofType type: KeyboardEventType, withKeyboardData keyboardData: KeyboardEventData) {
+        switch type {
+        case .willShow:
+            handleKeyboardShowEvent(withKeyboardData: keyboardData)
+        case .willHide:
+            handleKeyboardHideEvent(withKeyboardData: keyboardData)
+        default:
+            break
+        }
+    }
+
+    private func handleKeyboardShowEvent(withKeyboardData keyboardData: KeyboardEventData) {
 
         let currentConstraintConst = bottomConstraint.constant
         let endKbHeight = keyboardData.endKeyboardRect.height
@@ -121,4 +63,10 @@ internal class CPLKeyboardManagerConstraint: CPLKeyboardManagerBase {
         }, completion: nil)
     }
 
+    private func handleKeyboardHideEvent(withKeyboardData keyboardData: KeyboardEventData) {
+        bottomConstraint.constant = initialBottomConstraint
+        performAnimation(withDuration: keyboardData.getDuration(usingDefaultValue: defaultAnimationDuration), andAnimationOptions: keyboardData.getDefaultAnimationOptions(), action: { [weak self] in
+            self?.view.layoutIfNeeded()
+            }, completion: nil)
+    }
 }

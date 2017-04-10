@@ -10,14 +10,14 @@ import Foundation
 
 internal class CPLKeyboardManagerBase {
     internal let notificationCenter = NotificationCenter.default
-    internal var keyboardState: KeyboardState = .Hidden
+    internal var keyboardState: KeyboardState = .hidden
     internal var isTracking: Bool = false
     internal var currentFirstResponder: UIView? = nil
     internal var currentKeyboardHeight: CGFloat = 0.0
     internal var view: UIView
 
-    typealias KeyboardEventHandler = ((KeyboardEventData) -> Void)
-    internal var keyboardEventHandlers = [EventHandlerType : (action: KeyboardEventHandler, shouldOverride: Bool)]()
+    typealias KeyboardEventHandler = ((KeyboardEventData, UIView?) -> Void)
+    internal var keyboardEventHandlers = [KeyboardEventType : (action: KeyboardEventHandler, shouldOverride: Bool)]()
 
     public var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
     public var shouldPreserveContentInset = true
@@ -50,27 +50,45 @@ internal class CPLKeyboardManagerBase {
     }
 
     @objc public func keyboardWillShow(notification: Notification) {
-
+        guard let keyboardData = KeyboardEventData(notification: notification) else {
+            return
+        }
+        checkIfCustomHandlerExistsAndProceed(forEventType: .willShow, keyboardData: keyboardData)
     }
 
     @objc internal func keyboardDidShow(notification: Notification) {
-
+        guard let keyboardData = KeyboardEventData(notification: notification) else {
+            return
+        }
+        checkIfCustomHandlerExistsAndProceed(forEventType: .didShow, keyboardData: keyboardData)
     }
 
     @objc internal func keyboardWillChange(notification: Notification) {
-
+        guard let keyboardData = KeyboardEventData(notification: notification) else {
+            return
+        }
+        checkIfCustomHandlerExistsAndProceed(forEventType: .willChange, keyboardData: keyboardData)
     }
 
     @objc internal func keyboardDidChange(notification: Notification) {
-
+        guard let keyboardData = KeyboardEventData(notification: notification) else {
+            return
+        }
+        checkIfCustomHandlerExistsAndProceed(forEventType: .didChange, keyboardData: keyboardData)
     }
 
     @objc internal func keyboardWillHide(notification: Notification) {
-
+        guard let keyboardData = KeyboardEventData(notification: notification) else {
+            return
+        }
+        checkIfCustomHandlerExistsAndProceed(forEventType: .willHide, keyboardData: keyboardData)
     }
 
     @objc internal func keyboardDidHide(notification: Notification) {
-
+        guard let keyboardData = KeyboardEventData(notification: notification) else {
+            return
+        }
+        checkIfCustomHandlerExistsAndProceed(forEventType: .didHide, keyboardData: keyboardData)
     }
 
     @objc internal func didBeginEditing(notification: Notification) {
@@ -81,12 +99,48 @@ internal class CPLKeyboardManagerBase {
         currentFirstResponder = nil
     }
 
-    internal func areShownKeyboardParametersCorrect(beginRect: CGRect, endRect: CGRect) -> Bool {
+    internal func checkIfCustomHandlerExistsAndProceed(forEventType type: KeyboardEventType, keyboardData: KeyboardEventData) {
+        if !isTracking {
+            return
+        }
+
+        if let handler = keyboardEventHandlers[type] {
+            if handler.shouldOverride {
+                handler.action(keyboardData, currentFirstResponder)
+                return
+            }
+        }
+
+        if shouldProcess(givenKeyboardEvent: type, andKeyboardEventData: keyboardData) {
+            if areKeyboardParametersCorrect(forKeyboardEvent: type, beginRect: keyboardData.beginKeyboardRect, endRect: keyboardData.endKeyboardRect) {
+                handleKeyboardEvent(ofType: type, withKeyboardData: keyboardData)
+            }
+        }
+
+        keyboardEventHandlers[type]?.action(keyboardData, currentFirstResponder)
+    }
+
+    //Dummy function - should be overriden in descendant
+    internal func shouldProcess(givenKeyboardEvent event: KeyboardEventType, andKeyboardEventData keyboardData: KeyboardEventData) -> Bool {
+        return isTracking
+    }
+
+    //Dummy function - should be overriden in descendant
+    internal func handleKeyboardEvent(ofType type: KeyboardEventType, withKeyboardData keyboardData: KeyboardEventData) {
+        return
+    }
+
+    internal func areKeyboardParametersCorrect(forKeyboardEvent type: KeyboardEventType, beginRect: CGRect, endRect: CGRect) -> Bool {
         let isKeyboardHidden = isKeyboardBeingHidden(beginRect: beginRect, endRect: endRect)
         let isKeyboardSizeSame = isKeyboardFrameSame(beginRect: beginRect, endRect: endRect)
         let isKeyboardEndSizeCorrect = isKeyboardEndFrameCorrect(endRect: endRect)
+        let changeOrHideEventOccured = (type == .willChange || type == .didChange || type == .willHide || type == .didHide)
 
-        return !isKeyboardHidden && !isKeyboardSizeSame && isKeyboardEndSizeCorrect
+        if changeOrHideEventOccured {
+            return !isKeyboardSizeSame && isKeyboardEndSizeCorrect
+        } else {
+            return !isKeyboardHidden && !isKeyboardSizeSame && isKeyboardEndSizeCorrect
+        }
     }
 
     internal func isKeyboardBeingHidden(beginRect: CGRect, endRect: CGRect) -> Bool {
@@ -127,26 +181,20 @@ internal class CPLKeyboardManagerBase {
         notificationCenter.removeObserver(self)
     }
 
-    internal enum KeyboardEventType {
-        case WillShow
-        case DidShow
-        case WillChange
-        case DidChange
-    }
 
     internal enum KeyboardState {
-        case Shown
-        case Hidden
+        case shown
+        case hidden
     }
 }
 
-public enum EventHandlerType: String {
-    case WillShow = "WillShow"
-    case DidShow = "DidShow"
+public enum KeyboardEventType: String {
+    case willShow = "willShow"
+    case didShow = "didShow"
 
-    case WillChange = "WillChange"
-    case DidChange = "DidChange"
+    case willChange = "willChange"
+    case didChange = "didChange"
 
-    case WillHide = "WillHide"
-    case DidHide = "DidHide"
+    case willHide = "willHide"
+    case didHide = "didHide"
 }
