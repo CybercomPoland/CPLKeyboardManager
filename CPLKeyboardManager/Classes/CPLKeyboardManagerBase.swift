@@ -19,9 +19,9 @@ internal class CPLKeyboardManagerBase {
     typealias KeyboardEventHandler = ((KeyboardEventData, UIView?) -> Void)
     internal var keyboardEventHandlers = [KeyboardEventType : (action: KeyboardEventHandler, shouldOverride: Bool)]()
 
-    public var spaceBelowAndAboveEditable: CGFloat = 15.0
-    public var shouldPreserveContentInset = true
-    public var defaultAnimationDuration: Double = 0.25 //used when duration is not provided in userInfo
+    internal var spaceBelowAndAboveEditable: CGFloat = 15.0
+    internal var shouldPreserveContentInset = true
+    internal var defaultAnimationDuration: Double = 0.25 //used when duration is not provided in userInfo
 
     init(view: UIView) {
         self.view = view
@@ -49,7 +49,7 @@ internal class CPLKeyboardManagerBase {
         notificationCenter.addObserver(self, selector: #selector(didEndEditing), name: .UITextFieldTextDidEndEditing, object: nil)
     }
 
-    @objc public func keyboardWillShow(notification: Notification) {
+    @objc internal func keyboardWillShow(notification: Notification) {
         guard let keyboardData = KeyboardEventData(notification: notification) else {
             return
         }
