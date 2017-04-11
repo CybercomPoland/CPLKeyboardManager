@@ -296,8 +296,8 @@ internal class CPLKeyboardManagerScrollView: CPLKeyboardManagerBase {
     }
 
     private func getNewContentOffset(textFieldRect: CGRect, keyboardRect: CGRect, bottomInset: CGFloat) -> CGPoint? {
-        let newOrigin = CGPoint(x: textFieldRect.origin.x, y: textFieldRect.origin.y - spaceBetweenEditableAndKeyboardTop)
-        let textFieldRectWithBottomAndUpperSpace = CGRect(origin: newOrigin, size: CGSize(width: textFieldRect.width, height: textFieldRect.height + 2*spaceBetweenEditableAndKeyboardTop))
+        let newOrigin = CGPoint(x: textFieldRect.origin.x, y: textFieldRect.origin.y - spaceBelowAndAboveEditable)
+        let textFieldRectWithBottomAndUpperSpace = CGRect(origin: newOrigin, size: CGSize(width: textFieldRect.width, height: textFieldRect.height + 2*spaceBelowAndAboveEditable))
 
         var scrollViewRectConverted: CGRect!
         var currentContentOffset: CGPoint!

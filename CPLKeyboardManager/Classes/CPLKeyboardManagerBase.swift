@@ -19,7 +19,7 @@ internal class CPLKeyboardManagerBase {
     typealias KeyboardEventHandler = ((KeyboardEventData, UIView?) -> Void)
     internal var keyboardEventHandlers = [KeyboardEventType : (action: KeyboardEventHandler, shouldOverride: Bool)]()
 
-    public var spaceBetweenEditableAndKeyboardTop: CGFloat = 15.0
+    public var spaceBelowAndAboveEditable: CGFloat = 15.0
     public var shouldPreserveContentInset = true
     public var defaultAnimationDuration: Double = 0.25 //used when duration is not provided in userInfo
 

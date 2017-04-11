@@ -1,5 +1,6 @@
 # CPLKeyboardManager
 
+[![CI Status](http://img.shields.io/travis/CybercomPoland/CPLKeyboardManager.svg?style=flat)](https://travis-ci.org/CybercomPoland/CPLKeyboardManager)
 [![Version](https://img.shields.io/cocoapods/v/CPLKeyboardManager.svg?style=flat)](http://cocoapods.org/pods/CPLKeyboardManager)
 [![License](https://img.shields.io/cocoapods/l/CPLKeyboardManager.svg?style=flat)](http://cocoapods.org/pods/CPLKeyboardManager)
 [![Platform](https://img.shields.io/cocoapods/p/CPLKeyboardManager.svg?style=flat)](http://cocoapods.org/pods/CPLKeyboardManager)
