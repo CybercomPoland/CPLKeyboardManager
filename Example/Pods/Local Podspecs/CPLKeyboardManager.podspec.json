@@ -1,9 +1,9 @@
 {
   "name": "CPLKeyboardManager",
-  "version": "0.1.0",
-  "summary": "A short description of CPLKeyboardManager.",
-  "description": "TODO: Add long description of the pod here.",
-  "homepage": "https://github.com/Michał Ziętera/CPLKeyboardManager",
+  "version": "1.0.0",
+  "summary": "Manager that helps to keep keyboard logic outside of view controllers",
+  "description": "CPLKeyboardManager helps to keep view controllers cleaner by removing keyboard appearance logic out of them.",
+  "homepage": "https://github.com/CybercomPoland/CPLKeyboardManager",
   "license": {
     "type": "MIT",
     "file": "LICENSE"
@@ -12,8 +12,8 @@
     "Michał Ziętera": "Michal.Zietera@cybercom.com"
   },
   "source": {
-    "git": "https://github.com/Michał Ziętera/CPLKeyboardManager.git",
-    "tag": "0.1.0"
+    "git": "https://github.com/CybercomPoland/CPLKeyboardManager.git",
+    "tag": "1.0.0"
   },
   "platforms": {
     "ios": "8.0"
