@@ -1,0 +1,6 @@
+framework module Pods_CPLKeyboardManager {
+  umbrella header "Pods-CPLKeyboardManager-umbrella.h"
+
+  export *
+  module * { export * }
+}
