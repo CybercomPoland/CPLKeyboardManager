@@ -472,7 +472,7 @@
 			baseConfigurationReference = 48E91BDC46210AA714C7632C /* Pods-CPLKeyboardManager.debug.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = C6P2EMH7KR;
 				DYLIB_COMPATIBILITY_VERSION = 1;
@@ -495,7 +495,7 @@
 			baseConfigurationReference = AE358BFAEF7F0E2E3AF8D375 /* Pods-CPLKeyboardManager.release.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = C6P2EMH7KR;
 				DYLIB_COMPATIBILITY_VERSION = 1;
