@@ -80,6 +80,13 @@ class CPLKeyboardBaseSpec: QuickSpec {
 
         var window: UIWindow!
 
+        let correctKeyboardNotificationUserInfo: [AnyHashable: Any] = [
+            UIKeyboardFrameBeginUserInfoKey: CGRect(x: 0, y: 300, width: 200, height: 200),
+            UIKeyboardFrameEndUserInfoKey: CGRect(x:0, y:100, width: 200, height: 200),
+            UIKeyboardAnimationDurationUserInfoKey: NSNumber(value: 0.33),
+            UIKeyboardAnimationCurveUserInfoKey: NSNumber(integerLiteral: 1)
+        ]
+
         let textFieldWithoutAutocorrection = UITextField(frame: CGRect(x: 0, y: 0, width: 10, height: 10))
         textFieldWithoutAutocorrection.autocorrectionType = .no
         let textFieldWithAutocorrection = UITextField(frame: CGRect(x: 0, y: 0, width: 10, height: 10))
@@ -104,29 +111,8 @@ class CPLKeyboardBaseSpec: QuickSpec {
             fakeKbManagerBase = nil
         }
 
-        describe("When willShow notification was send") {
-            it("should execute standard willShow and didShow handler", closure: {
-                textFieldWithoutAutocorrection.becomeFirstResponder()
-
-                //RunLoop.current.run(until: Date())
-                expect(fakeKbManagerBase.standardWillShowHandlerWasCalled).to(beTrue())
-
-                //RunLoop.current.run(until: Date().addingTimeInterval(1.0))
-                expect(fakeKbManagerBase.standardDidShowHandlerWasCalled).to(beTrue())
-                textFieldWithoutAutocorrection.resignFirstResponder()
-               // RunLoop.current.run(until: Date().addingTimeInterval(4.0))
-            })
-
-            it("should execute standard willChange and didChange handler", closure: {
-                textFieldWithAutocorrection.becomeFirstResponder()
-
-                expect(fakeKbManagerBase.standardWillChangeHandlerWasCalled).to(beTrue())
-                expect(fakeKbManagerBase.standardDidChangeHandlerWasCalled).to(beTrue())
-            })
-        }
-
-        describe("If registered") {
-            it("should respond to all keyboard notifications", closure: {
+        describe("when registered") {
+            it("responds to all keyboard notifications", closure: {
                 self.postAllKeyboardNotification()
                 expect(fakeKbManagerBase.willShowNotificationReceived).to(beTrue())
                 expect(fakeKbManagerBase.didShowNotificationReceived).to(beTrue())
@@ -137,8 +123,8 @@ class CPLKeyboardBaseSpec: QuickSpec {
             })
         }
 
-        describe("If not registered") {
-            it("should not respond to any keyboard notification", closure: {
+        describe("when not registered") {
+            it("doesn't respond to any keyboard notification", closure: {
                 fakeKbManagerBase.unregisterFromNotifications()
                 self.postAllKeyboardNotification()
                 expect(fakeKbManagerBase.willShowNotificationReceived).to(beFalse())
@@ -150,54 +136,91 @@ class CPLKeyboardBaseSpec: QuickSpec {
             })
         }
 
-        describe("If tracking is enabled") { 
-            it("should handle correct keyboard notification", closure: {
-
+        describe("when tracking is enabled") {
+            it("handles correct keyboard notification", closure: {
+                fakeKbManagerBase.start()
+                self.postAllKeyboardNotification(withUserInfo: correctKeyboardNotificationUserInfo)
+                expect(fakeKbManagerBase.standardWillShowHandlerWasCalled).to(beTrue())
+                expect(fakeKbManagerBase.standardDidShowHandlerWasCalled).to(beTrue())
+                expect(fakeKbManagerBase.standardWillChangeHandlerWasCalled).to(beTrue())
+                expect(fakeKbManagerBase.standardDidChangeHandlerWasCalled).to(beTrue())
+                expect(fakeKbManagerBase.standardWillHideHandlerWasCalled).to(beTrue())
+                expect(fakeKbManagerBase.standardDidHideHandlerWasCalled).to(beTrue())
             })
         }
 
-        describe("If tracking is disabled") { 
-            it("should not handle correct keyboard notification", closure: { 
-                
+        describe("when tracking is disabled") {
+            it("doesn't handle correct keyboard notification", closure: {
+                fakeKbManagerBase.stop()
+                self.postAllKeyboardNotification(withUserInfo: correctKeyboardNotificationUserInfo)
+                expect(fakeKbManagerBase.standardWillShowHandlerWasCalled).to(beFalse())
+                expect(fakeKbManagerBase.standardDidShowHandlerWasCalled).to(beFalse())
+                expect(fakeKbManagerBase.standardWillChangeHandlerWasCalled).to(beFalse())
+                expect(fakeKbManagerBase.standardDidChangeHandlerWasCalled).to(beFalse())
+                expect(fakeKbManagerBase.standardWillHideHandlerWasCalled).to(beFalse())
+                expect(fakeKbManagerBase.standardDidHideHandlerWasCalled).to(beFalse())
+            })
+        }
+
+        describe("isKeyboardFrameSame") {
+            var beginFrame: CGRect!
+            var endFrame: CGRect!
+
+            context("when begin height is equal to end height", {
+                beforeEach {
+                    beginFrame = CGRect(x: 0, y: 300, width: 200, height: 200)
+                    endFrame = CGRect(x: 0, y: 300, width: 200, height: 200)
+                }
+
+                describe("when end height is equal to stored one", {
+                    it("returns true", closure: {
+                        fakeKbManagerBase.currentKeyboardHeight = endFrame.height
+                        let result = fakeKbManagerBase.isKeyboardFrameSame(beginRect: beginFrame, endRect: endFrame)
+                        expect(result).to(beTrue())
+                    })
+                })
+
+                describe("end height is not equal to stored one", {
+                    it("returns false", closure: {
+                        fakeKbManagerBase.currentKeyboardHeight = endFrame.height + 100
+                        let result = fakeKbManagerBase.isKeyboardFrameSame(beginRect: beginFrame, endRect: endFrame)
+                        expect(result).to(beFalse())
+                    })
+                })
+            })
+
+            context("when begin height is not equal to end height", {
+                beforeEach {
+                    beginFrame = CGRect(x: 0, y: 300, width: 200, height: 200)
+                    endFrame = CGRect(x: 0, y: 200, width: 200, height: 300)
+                }
+
+                describe("end height is equal to stored one", {
+                    it("returns false", closure: {
+                        fakeKbManagerBase.currentKeyboardHeight = endFrame.height
+                        let result = fakeKbManagerBase.isKeyboardFrameSame(beginRect: beginFrame, endRect: endFrame)
+                        expect(result).to(beFalse())
+                    })
+                })
+
+                describe("end height is not equal to stored one", {
+                    it("returns false", closure: {
+                        fakeKbManagerBase.currentKeyboardHeight = endFrame.height + 100
+                        let result = fakeKbManagerBase.isKeyboardFrameSame(beginRect: beginFrame, endRect: endFrame)
+                        expect(result).to(beFalse())
+                    })
+                })
             })
         }
     }
 
-    func postAllKeyboardNotification() {
+    func postAllKeyboardNotification(withUserInfo userInfo: [AnyHashable: Any]? = nil) {
         let notifCenter = NotificationCenter.default
-        notifCenter.post(name: NSNotification.Name.UIKeyboardWillShow, object: nil, userInfo: nil)
-        notifCenter.post(name: NSNotification.Name.UIKeyboardDidShow, object: nil, userInfo: nil)
-        notifCenter.post(name: NSNotification.Name.UIKeyboardWillChangeFrame, object: nil, userInfo: nil)
-        notifCenter.post(name: NSNotification.Name.UIKeyboardDidChangeFrame, object: nil, userInfo: nil)
-        notifCenter.post(name: NSNotification.Name.UIKeyboardWillHide, object: nil, userInfo: nil)
-        notifCenter.post(name: NSNotification.Name.UIKeyboardDidHide, object: nil, userInfo: nil)
+        notifCenter.post(name: NSNotification.Name.UIKeyboardWillShow, object: nil, userInfo: userInfo)
+        notifCenter.post(name: NSNotification.Name.UIKeyboardDidShow, object: nil, userInfo: userInfo)
+        notifCenter.post(name: NSNotification.Name.UIKeyboardWillChangeFrame, object: nil, userInfo: userInfo)
+        notifCenter.post(name: NSNotification.Name.UIKeyboardDidChangeFrame, object: nil, userInfo: userInfo)
+        notifCenter.post(name: NSNotification.Name.UIKeyboardWillHide, object: nil, userInfo: userInfo)
+        notifCenter.post(name: NSNotification.Name.UIKeyboardDidHide, object: nil, userInfo: userInfo)
     }
 }
-
-
-
-//class CPLKeyboardManagerTests: XCTestCase {
-//    
-//    override func setUp() {
-//        super.setUp()
-//        // Put setup code here. This method is called before the invocation of each test method in the class.
-//    }
-//    
-//    override func tearDown() {
-//        // Put teardown code here. This method is called after the invocation of each test method in the class.
-//        super.tearDown()
-//    }
-//    
-//    func testExample() {
-//        // This is an example of a functional test case.
-//        // Use XCTAssert and related functions to verify your tests produce the correct results.
-//    }
-//    
-//    func testPerformanceExample() {
-//        // This is an example of a performance test case.
-//        self.measure {
-//            // Put the code you want to measure the time of here.
-//        }
-//    }
-//    
-//}
