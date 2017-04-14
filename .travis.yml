@@ -5,10 +5,11 @@
 osx_image: xcode8.3
 language: objective-c
 # cache: cocoapods
-# podfile: Example/Podfile
-# before_install:
-# - gem install cocoapods # Since Travis is not always on latest version
+# podfile: Podfile
+before_install:
+ - gem install cocoapods # Since Travis is not always on latest version
+ - pod update
 # - pod install --project-directory=Example
 script:
-- set -o pipefail && xcodebuild test -workspace Example/CPLKeyboardManager.xcworkspace -scheme CPLKeyboardManager-Example -sdk iphonesimulator9.3 ONLY_ACTIVE_ARCH=NO | xcpretty
-- pod lib lint
+- set -o pipefail && xcodebuild test -workspace CPLKeyboardManager.xcworkspace -scheme CPLKeyboardManager -sdk iphonesimulator10.3 -destination 'platform=iOS Simulator,name=iPhone 6S' ONLY_ACTIVE_ARCH=NO | xcpretty
+- pod lib lint --no-clean --allow-warnings
